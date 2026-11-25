@@ -454,7 +454,9 @@
    5. ADAPTACIÓN A PANTALLAS
    -------------------------------------------------------------------------- */
 
-@media (max-width: 1100px) {
+/* Con el menú lateral, por debajo de ~1320 px la tabla no cabe junto al
+   formulario (los nombres se parten y «Eliminar» queda fuera): una columna. */
+@media (max-width: 1320px) {
     .s-usuarios-rejilla {
         grid-template-columns: minmax(0, 1fr);
     }

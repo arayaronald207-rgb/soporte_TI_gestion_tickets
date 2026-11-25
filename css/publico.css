@@ -94,14 +94,24 @@ body.s-publico {
     min-height: 68px;
 }
 
+/* Barra con flexbox: marca a la izquierda, enlaces en el centro y cuenta a la
+   derecha. La navegación puede encogerse (min-width: 0), pero sus enlaces no se
+   parten (nowrap): por eso recorta y desplaza su propio contenido en lugar de
+   pintarlo encima del bloque de cuenta. */
 .s-pub-nav {
     display: flex;
-    flex: 1;
+    flex: 1 1 auto;
     align-items: center;
     gap: var(--s-esp-1);
     min-width: 0;
     margin-left: var(--s-esp-6);
+    overflow-x: auto;
+    scrollbar-width: none;
 }
+
+.s-pub-nav::-webkit-scrollbar { display: none; }
+
+.s-pub-cabecera .s-marca { flex-shrink: 0; }
 
 .s-pub-enlace i {
     font-size: 12px;
@@ -1315,8 +1325,9 @@ a.s-flujo-tarjeta:hover .s-flujo-abrir i {
    7. ADAPTACIÓN A PANTALLAS
    -------------------------------------------------------------------------- */
 
-/* Texto oculto visualmente pero disponible para lectores de pantalla */
-@media (max-width: 1240px) {
+/* Con sesión, la cuenta se compacta (avatar e iconos) antes de que falte espacio.
+   Texto oculto visualmente pero disponible para lectores de pantalla. */
+@media (max-width: 1480px) {
     .s-pub-usuario {
         padding: 4px;
     }
@@ -1335,6 +1346,27 @@ a.s-flujo-tarjeta:hover .s-flujo-abrir i {
         width: 40px;
         justify-content: center;
         padding: 0;
+    }
+}
+
+/* Con sesión hay cuatro enlaces más el bloque de cuenta: pasan a dos filas antes
+   que en la cabecera del visitante (marca y cuenta arriba, enlaces debajo). */
+@media (max-width: 1180px) {
+    .s-pub-cabecera-sesion .s-pub-cabecera-interior {
+        flex-wrap: wrap;
+        gap: 0 var(--s-esp-3);
+        padding-top: var(--s-esp-3);
+    }
+
+    .s-pub-cabecera-sesion .s-pub-cuenta {
+        margin-left: auto;
+    }
+
+    .s-pub-cabecera-sesion .s-pub-nav {
+        order: 3;
+        flex: 1 1 100%;
+        margin: 0 calc(-1 * clamp(var(--s-esp-4), 4vw, var(--s-esp-8)));
+        padding: var(--s-esp-2) clamp(var(--s-esp-4), 4vw, var(--s-esp-8)) var(--s-esp-3);
     }
 }
 
@@ -1394,11 +1426,7 @@ a.s-flujo-tarjeta:hover .s-flujo-abrir i {
         flex: 1 1 100%;
         margin: 0 calc(-1 * clamp(var(--s-esp-4), 4vw, var(--s-esp-8)));
         padding: var(--s-esp-2) clamp(var(--s-esp-4), 4vw, var(--s-esp-8)) var(--s-esp-3);
-        overflow-x: auto;
-        scrollbar-width: none;
     }
-
-    .s-pub-nav::-webkit-scrollbar { display: none; }
 
     .s-pub-hero-rejilla {
         grid-template-columns: minmax(0, 1fr);
@@ -1461,6 +1489,40 @@ a.s-flujo-tarjeta:hover .s-flujo-abrir i {
     /* Teléfonos: la marca pierde el subtítulo y «Ir al panel» queda solo con icono */
     .s-pub-cabecera .s-marca-texto small {
         display: none;
+    }
+}
+
+/* Teléfonos: los botones de la cuenta quedan solo con icono (el texto sigue
+   disponible para lectores de pantalla) para que nunca salgan de la pantalla. */
+@media (max-width: 600px) {
+    .s-pub-cabecera-sesion .s-pub-cuenta .s-btn-primario span {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        overflow: hidden;
+        clip: rect(0, 0, 0, 0);
+        white-space: nowrap;
+    }
+
+    .s-pub-cabecera-sesion .s-pub-cuenta .s-btn-primario {
+        width: 40px;
+        padding: 0;
+    }
+}
+
+@media (max-width: 460px) {
+    .s-pub-acceso-claro span {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        overflow: hidden;
+        clip: rect(0, 0, 0, 0);
+        white-space: nowrap;
+    }
+
+    .s-pub-acceso-claro {
+        width: 40px;
+        padding: 0;
     }
 }
 

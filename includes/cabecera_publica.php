@@ -1,7 +1,7 @@
 <?php
 /**
  * Barra superior compartida de las páginas de portal («Señal»):
- * index.php, registrar.php e incidencias.php.
+ * index.php, registrar.php y seguimiento.php.
  *
  * Solo genera HTML. No consulta la base de datos ni concede permisos: mostrar
  * u ocultar un enlace es una ayuda visual; cada página mantiene su propio
@@ -9,7 +9,7 @@
  *
  * Variables que usa (definidas por la página):
  *   $usuario_actual  array|null  Resultado de usuarioAutenticado(); null para visitantes.
- *   $pub_activa      string      'inicio' | 'registrar' | 'consulta'.
+ *   $pub_activa      string      'inicio' | 'registrar' | 'seguimiento' | 'consulta'.
  *
  * Las variables internas usan el prefijo $pub_ y se eliminan al final.
  */
@@ -26,7 +26,7 @@ $pub_iniciales = mb_strtoupper(mb_substr(preg_replace('/[^\p{L}\p{N}]+/u', '', $
 ?>
 <a href="#contenido" class="s-saltar">Saltar al contenido</a>
 
-<header class="s-pub-cabecera">
+<header class="s-pub-cabecera<?= $pub_con_sesion ? ' s-pub-cabecera-sesion' : '' ?>">
     <div class="s-pub-contenedor s-pub-cabecera-interior">
 
         <a href="index.php" class="s-marca">
