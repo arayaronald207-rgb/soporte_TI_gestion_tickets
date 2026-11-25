@@ -25,7 +25,6 @@ $incidencia = incidenciaPermitida($conn, $id, $usuario_actual);
 $error = "";
 
 $estados_validos = ESTADOS_TICKET;
-$es_admin = $usuario_actual["rol"] === "admin";
 
 // Procesar el formulario
 if ($_SERVER["REQUEST_METHOD"] === "POST") {
@@ -181,7 +180,7 @@ function escapar($valor) {
         ];
         $rol_actual = (string) $_SESSION["admin_rol"];
         // Solo presentación: el servidor vuelve a validar la transición al guardar.
-        $bloqueado_cerrado = $incidencia["estado"] === "Cerrado" && !$es_admin;
+        $bloqueado_cerrado = ticketSoloLectura($incidencia["estado"], $rol_actual);
         $motivo_opcion = static fn(string $e): ?string => motivoTransicionNoPermitida($incidencia["estado"], $e, $rol_actual);
         ?>
         <div class="s-form-pagina">

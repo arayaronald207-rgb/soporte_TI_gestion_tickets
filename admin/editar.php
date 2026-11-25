@@ -4,6 +4,7 @@ require_once __DIR__ . "/../config/parametros.php";
 require_once __DIR__ . "/../config/conexion.php";
 require_once __DIR__ . "/../config/autorizacion.php";
 require_once __DIR__ . "/../config/historial.php";
+require_once __DIR__ . "/../config/estados.php";
 $usuario_actual = usuarioAutenticado($conn, "../login.php");
 
 // Crear token CSRF
@@ -27,6 +28,8 @@ if (!$id || $id <= 0) {
 $incidencia = incidenciaPermitida($conn, $id, $usuario_actual);
 
 $error = "";
+// Cerrado: solo lectura para el técnico (el administrador puede editarlo y reabrirlo).
+$solo_lectura = ticketSoloLectura($incidencia["estado"], (string) $usuario_actual["rol"]);
 $categorias_validas = ["hardware" => "Hardware", "software" => "Software", "red" => "Red"];
 
 // Procesar el formulario
@@ -49,6 +52,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
     $token_valido = is_string($token) &&
         hash_equals($_SESSION["csrf_token"], $token);
 
+    $incidencia_guardada = $incidencia;
     // Mantener los valores escritos si ocurre un error
     $incidencia["reportado_por"] = $nombre;
     $incidencia["laboratorio"] = $laboratorio;
@@ -62,6 +66,12 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
     if (!$token_valido) {
 
         $error = "Solicitud no válida. Actualiza la página e inténtalo de nuevo.";
+
+    } elseif ($solo_lectura) {
+
+        http_response_code(409);
+        $error = MENSAJE_TICKET_SOLO_LECTURA;
+        $incidencia = $incidencia_guardada;
 
     } elseif ($titulo === "" || !array_key_exists($categoria, $categorias_validas)) {
         $error = "Completa el título y selecciona una categoría válida.";
@@ -90,59 +100,68 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
         try {
             $anterior = bloquearIncidenciaParaCambio($conn, $id);
-            // Actualizar la incidencia
-            $sql = "UPDATE incidencias
-                    SET reportado_por = ?,
-                        laboratorio = ?,
-                        equipo = ?,
-                        descripcion = ?,
-                        prioridad = ?,
-                        titulo = ?,
-                        categoria = ?
-                    WHERE id = ?";
+            // Se vuelve a comprobar bajo bloqueo: el ticket pudo cerrarse mientras se editaba.
+            if (ticketSoloLectura($anterior["estado"], (string) $_SESSION["admin_rol"])) {
+                $conn->rollback();
+                http_response_code(409);
+                $solo_lectura = true;
+                $incidencia = $anterior;
+                $error = MENSAJE_TICKET_SOLO_LECTURA;
+            } else {
+                // Actualizar la incidencia
+                $sql = "UPDATE incidencias
+                        SET reportado_por = ?,
+                            laboratorio = ?,
+                            equipo = ?,
+                            descripcion = ?,
+                            prioridad = ?,
+                            titulo = ?,
+                            categoria = ?
+                        WHERE id = ?";
 
-            $stmt = $conn->prepare($sql);
+                $stmt = $conn->prepare($sql);
 
-            $stmt->bind_param(
-                "sssssssi",
-                $nombre,
-                $laboratorio,
-                $equipo,
-                $descripcion,
-                $prioridad,
-                $titulo,
-                $categoria,
-                $id
-            );
+                $stmt->bind_param(
+                    "sssssssi",
+                    $nombre,
+                    $laboratorio,
+                    $equipo,
+                    $descripcion,
+                    $prioridad,
+                    $titulo,
+                    $categoria,
+                    $id
+                );
 
-            if ($stmt->execute()) {
-                $cambios = [];
-                foreach (['reportado_por' => 'Reportado por', 'laboratorio' => 'Laboratorio',
-                    'equipo' => 'Equipo', 'descripcion' => 'Descripción', 'prioridad' => 'Prioridad',
-                    'titulo' => 'Título', 'categoria' => 'Categoría'] as $campo => $etiqueta) {
-                    if ($anterior[$campo] !== $incidencia[$campo]) {
-                        $cambios[] = $etiqueta . ': ' . ($anterior[$campo] ?? '(sin completar)') .
-                            ' → ' . $incidencia[$campo];
+                if ($stmt->execute()) {
+                    $cambios = [];
+                    foreach (['reportado_por' => 'Reportado por', 'laboratorio' => 'Laboratorio',
+                        'equipo' => 'Equipo', 'descripcion' => 'Descripción', 'prioridad' => 'Prioridad',
+                        'titulo' => 'Título', 'categoria' => 'Categoría'] as $campo => $etiqueta) {
+                        if ($anterior[$campo] !== $incidencia[$campo]) {
+                            $cambios[] = $etiqueta . ': ' . ($anterior[$campo] ?? '(sin completar)') .
+                                ' → ' . $incidencia[$campo];
+                        }
                     }
+                    if ($cambios) {
+                        registrarEventoIncidencia($conn, $id, (int) $_SESSION['admin_id'], 'edicion',
+                            "Se editó la información del ticket:\n" . implode("\n", $cambios));
+                    }
+                    $conn->commit();
+
+                    $stmt->close();
+
+                    header("Location: index.php?actualizado=1");
+                    exit;
+
+                } else {
+
+                    $error = "No se pudo actualizar la incidencia.";
                 }
-                if ($cambios) {
-                    registrarEventoIncidencia($conn, $id, (int) $_SESSION['admin_id'], 'edicion',
-                        "Se editó la información del ticket:\n" . implode("\n", $cambios));
-                }
-                $conn->commit();
 
                 $stmt->close();
-
-                header("Location: index.php?actualizado=1");
-                exit;
-
-            } else {
-
-                $error = "No se pudo actualizar la incidencia.";
+                $conn->rollback();
             }
-
-            $stmt->close();
-            $conn->rollback();
         } catch (mysqli_sql_exception $e) {
             $conn->rollback();
             error_log("Error al gestionar incidencia: " . $e->getMessage());
@@ -204,7 +223,7 @@ function escapar($valor) {
             <div>
                 <span class="topbar-etiqueta">Gestión de tickets</span>
                 <h1>Editar ticket <span class="s-mono">#<?= str_pad((string) (int) $id, 4, "0", STR_PAD_LEFT) ?></span></h1>
-                <p>Actualiza la información de la incidencia y guarda los cambios.</p>
+                <p><?= $solo_lectura ? "Ticket cerrado: consulta de solo lectura." : "Actualiza la información de la incidencia y guarda los cambios." ?></p>
             </div>
 
             <a href="index.php" class="btn-limpiar">
@@ -215,12 +234,7 @@ function escapar($valor) {
         </header>
 
         <?php
-        $tono_estado_ficha = match ($incidencia["estado"]) {
-            "Resuelta" => "resuelta",
-            "En proceso" => "proceso",
-            "Cerrado" => "cerrado",
-            default => "pendiente"
-        };
+        $tono_estado_ficha = tonoEstado($incidencia["estado"]);
         ?>
         <div class="s-form-pagina">
 
@@ -235,8 +249,18 @@ function escapar($valor) {
                     </div>
                 </div>
 
-                <!-- MOSTRAR ERRORES -->
-                <?php if ($error !== ""): ?>
+                <?php if ($solo_lectura): ?>
+                    <div class="s-aviso s-aviso-info" role="status">
+                        <i class="fa-solid fa-lock" aria-hidden="true"></i>
+                        <div>
+                            <strong>Ticket cerrado: solo lectura.</strong>
+                            Puedes consultar su información, pero no modificarla. Si necesita cambios, solicita a un administrador que lo reabra.
+                        </div>
+                    </div>
+                <?php endif; ?>
+
+                <!-- MOSTRAR ERRORES (el rechazo por solo lectura ya lo explica el aviso anterior) -->
+                <?php if ($error !== "" && $error !== MENSAJE_TICKET_SOLO_LECTURA): ?>
                     <div class="s-aviso s-aviso-error" role="alert">
                         <i class="fa-solid fa-circle-exclamation" aria-hidden="true"></i>
                         <div>
@@ -251,7 +275,7 @@ function escapar($valor) {
                     <input type="hidden" name="csrf_token" value="<?= escapar($_SESSION["csrf_token"]) ?>">
 
                     <!-- SECCIÓN 1 -->
-                    <fieldset class="s-form-seccion">
+                    <fieldset class="s-form-seccion"<?= $solo_lectura ? " disabled" : "" ?>>
                         <legend><span class="s-form-paso">1</span> Clasificación</legend>
 
                         <div class="s-form-rejilla">
@@ -285,7 +309,7 @@ function escapar($valor) {
                     </fieldset>
 
                     <!-- SECCIÓN 2 -->
-                    <fieldset class="s-form-seccion">
+                    <fieldset class="s-form-seccion"<?= $solo_lectura ? " disabled" : "" ?>>
                         <legend><span class="s-form-paso">2</span> Solicitante y ubicación</legend>
 
                         <div class="s-form-rejilla s-form-rejilla-3">
@@ -310,7 +334,7 @@ function escapar($valor) {
                     </fieldset>
 
                     <!-- SECCIÓN 3 -->
-                    <fieldset class="s-form-seccion">
+                    <fieldset class="s-form-seccion"<?= $solo_lectura ? " disabled" : "" ?>>
                         <legend><span class="s-form-paso">3</span> Detalle del problema</legend>
 
                         <div class="s-campo">
@@ -324,7 +348,7 @@ function escapar($valor) {
                     <!-- BOTONES -->
                     <div class="s-form-acciones">
                         <a href="index.php" class="s-btn s-btn-secundario">Cancelar</a>
-                        <button type="submit" class="s-btn s-btn-primario">
+                        <button type="submit" class="s-btn s-btn-primario"<?= $solo_lectura ? " disabled" : "" ?>>
                             <i class="fa-solid fa-floppy-disk" aria-hidden="true"></i>
                             Guardar cambios
                         </button>
@@ -334,8 +358,8 @@ function escapar($valor) {
             </section>
 
             <!-- FICHA DEL TICKET -->
-            <aside class="s-ficha" aria-label="Ticket en edición">
-                <span class="s-rotulo">Ticket en edición</span>
+            <aside class="s-ficha" aria-label="<?= $solo_lectura ? 'Ticket cerrado' : 'Ticket en edición' ?>">
+                <span class="s-rotulo"><?= $solo_lectura ? 'Ticket cerrado' : 'Ticket en edición' ?></span>
                 <p class="s-ficha-numero s-mono">#<?= str_pad((string) (int) $id, 4, "0", STR_PAD_LEFT) ?></p>
 
                 <dl class="s-ficha-datos">

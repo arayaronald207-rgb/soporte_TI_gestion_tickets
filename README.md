@@ -8,7 +8,7 @@ Aplicación web tipo *Help Desk* para registrar, asignar, atender y dar seguimie
 
 - Creación de tickets con título, descripción, categoría (Hardware, Software, Red) y prioridad (Baja, Media, Alta).
 - Asignación y reasignación de tickets a técnicos (administrador).
-- Ciclo de vida: Pendiente → En proceso → Resuelta → Cerrado. Solo se cierra un ticket resuelto (técnico asignado o administrador); Cerrado es el estado final y solo el administrador puede reabrirlo.
+- Ciclo de vida: Pendiente → En proceso → Resuelta → Cerrado. Solo se cierra un ticket resuelto (técnico asignado o administrador); Cerrado es el estado final y de solo lectura para el técnico (no puede editarlo ni comentarlo); solo el administrador puede reabrirlo.
 - Historial auditable y comentarios de seguimiento por ticket.
 - Archivado y restauración de tickets (no se borran).
 - Listado con filtros por estado (incluido Cerrado), prioridad, categoría, técnico, SLA y búsqueda de texto.

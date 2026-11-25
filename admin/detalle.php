@@ -29,6 +29,10 @@ try {
         if (!is_string($token) || !hash_equals($_SESSION['csrf_token'], $token)) {
             http_response_code(403);
             $error = 'Solicitud no válida. Actualiza la página.';
+        } elseif (ticketSoloLectura($incidencia['estado'], (string) $_SESSION['admin_rol'])) {
+            // Estado leído bajo bloqueo: un ticket cerrado no admite comentarios ni códigos del técnico.
+            http_response_code(409);
+            $error = MENSAJE_TICKET_SOLO_LECTURA;
         } elseif ($accion === 'codigo' && $incidencia['codigo_seguimiento_hash'] !== null &&
             ($_POST['confirmado'] ?? null) !== '1') {
             // Reemplazar un codigo activo lo invalida: se pide confirmacion explicita.
@@ -105,6 +109,7 @@ try {
 function escapar($valor): string {
     return htmlspecialchars((string) $valor, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
 }
+$solo_lectura = ticketSoloLectura($incidencia['estado'], (string) $_SESSION['admin_rol']);
 $tipos = ['creacion' => 'Creación', 'comentario' => 'Comentario', 'edicion' => 'Edición',
     'asignacion' => 'Asignación', 'cambio_estado' => 'Cambio de estado',
     'archivado' => 'Archivado', 'desarchivado' => 'Desarchivado'];
@@ -234,9 +239,11 @@ $categorias = ['hardware' => 'Hardware', 'software' => 'Software', 'red' => 'Red
 
             <!-- ACCIONES SEGÚN EL ROL (mismas URLs y condiciones) -->
             <nav class="s-detalle-acciones" aria-label="Acciones del ticket">
-                <a href="editar.php?id=<?= (int) $id ?>" class="s-btn s-btn-secundario">
-                    <i class="fa-solid fa-pen" aria-hidden="true"></i> Editar
-                </a>
+                <?php if (!$solo_lectura): ?>
+                    <a href="editar.php?id=<?= (int) $id ?>" class="s-btn s-btn-secundario">
+                        <i class="fa-solid fa-pen" aria-hidden="true"></i> Editar
+                    </a>
+                <?php endif; ?>
                 <a href="estado.php?id=<?= (int) $id ?>" class="s-btn s-btn-secundario">
                     <i class="fa-solid fa-arrows-rotate" aria-hidden="true"></i> Cambiar estado
                 </a>
@@ -251,6 +258,13 @@ $categorias = ['hardware' => 'Hardware', 'software' => 'Software', 'red' => 'Red
                 <?php endif; ?>
             </nav>
         </section>
+
+        <?php if ($solo_lectura): ?>
+            <div class="s-aviso s-aviso-info s-detalle-aviso" role="status">
+                <i class="fa-solid fa-lock" aria-hidden="true"></i>
+                <div><strong>Ticket cerrado: solo lectura.</strong> Puedes consultar su información e historial, pero no editarlo ni agregar comentarios. Si necesita cambios, solicita a un administrador que lo reabra.</div>
+            </div>
+        <?php endif; ?>
 
         <?php if ((int) $incidencia['archivado'] === 1): ?>
             <div class="s-aviso s-aviso-info s-detalle-aviso">
@@ -345,6 +359,9 @@ $categorias = ['hardware' => 'Hardware', 'software' => 'Software', 'red' => 'Red
                             </div>
                         <?php endif; ?>
 
+                        <?php if ($solo_lectura): ?>
+                        <p class="s-ficha-nota"><i class="fa-solid fa-lock" aria-hidden="true"></i> El ticket está cerrado: no se pueden agregar comentarios.</p>
+                        <?php else: ?>
                         <form method="POST" action="detalle.php?id=<?= (int) $id ?>#historial" class="s-formulario s-comentar-form">
                             <input type="hidden" name="csrf_token" value="<?= escapar($_SESSION['csrf_token']) ?>">
                             <div class="s-campo">
@@ -370,6 +387,7 @@ $categorias = ['hardware' => 'Hardware', 'software' => 'Software', 'red' => 'Red
                                 </button>
                             </div>
                         </form>
+                        <?php endif; ?>
                     </div>
                 </section>
             </div>
@@ -468,14 +486,16 @@ $categorias = ['hardware' => 'Hardware', 'software' => 'Software', 'red' => 'Red
                                 </form>
                             </div>
                         </div>
-                    <?php else: ?>
+                    <?php elseif (!$solo_lectura): ?>
                         <p class="s-ficha-nota">
                             <?= $incidencia['codigo_seguimiento_hash'] === null
                                 ? 'Este ticket no tiene código. Genera uno para que el solicitante pueda consultarlo y responder la encuesta.'
                                 : 'El solicitante tiene un código activo. Si lo perdió, genera uno nuevo (el anterior dejará de funcionar).' ?>
                         </p>
                     <?php endif; ?>
-                    <?php if (!$confirmar_codigo): ?>
+                    <?php if ($solo_lectura): ?>
+                        <p class="s-ficha-nota"><i class="fa-solid fa-lock" aria-hidden="true"></i> Ticket cerrado: solo un administrador puede generar un código nuevo.</p>
+                    <?php elseif (!$confirmar_codigo): ?>
                         <form method="POST" action="detalle.php?id=<?= (int) $id ?>"
                             <?php if ($incidencia['codigo_seguimiento_hash'] !== null): ?>
                               data-confirmar

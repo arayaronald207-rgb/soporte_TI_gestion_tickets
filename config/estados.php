@@ -37,6 +37,19 @@ function tonoEstado(?string $estado): string
     };
 }
 
+const MENSAJE_TICKET_SOLO_LECTURA = 'El ticket está cerrado y solo se puede consultar. Si necesita cambios, solicita a un administrador que lo reabra.';
+
+/*
+ * Un ticket Cerrado es de solo lectura para el tecnico: no puede editarlo,
+ * comentarlo, generar codigos ni cambiar su estado. El administrador conserva
+ * todas las operaciones y es quien lo reabre; al reabrirlo vuelve a ser editable.
+ * Llamar con el estado leido bajo bloqueo y el rol revalidado en la base.
+ */
+function ticketSoloLectura(?string $estado, string $rol): bool
+{
+    return $estado === 'Cerrado' && $rol !== 'admin';
+}
+
 /**
  * Valida un cambio de estado. Devuelve null si esta permitido o el motivo del rechazo.
  * Repetir el estado actual siempre esta permitido (no produce cambios).
