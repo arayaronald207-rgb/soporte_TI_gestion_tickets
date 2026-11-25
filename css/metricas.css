@@ -1,0 +1,528 @@
+/* ==========================================================================
+   GESTIÓN DE INCIDENCIAS · DASHBOARD DE MÉTRICAS «SEÑAL» (Etapa 2)
+
+   - Requiere css/tema.css (variables y componente .s-kpi) y css/navegacion.css.
+   - Solo se carga en admin/index.php, después de las demás hojas.
+   - Estiliza indicadores, gráficos y sus tablas de datos. No afecta a la
+     tabla de tickets ni a los filtros (etapas posteriores).
+
+   Distribución:
+     Escritorio (> 1200px)  KPI 3 + 4 · gráficos 3 + 2
+     Tableta  (761–1200px)  KPI 3 + 2×2 · gráficos 2 + 1 + 2
+     Móvil    (≤ 760px)     KPI en 2 columnas compactas · gráficos en 1 columna
+   ========================================================================== */
+
+
+/* --------------------------------------------------------------------------
+   1. CABECERAS DE SECCIÓN
+   -------------------------------------------------------------------------- */
+
+.s-metricas,
+.s-graficos {
+    margin-bottom: var(--s-esp-8);
+}
+
+.s-seccion-cabecera {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: var(--s-esp-3);
+    margin-bottom: var(--s-esp-2);
+}
+
+.s-seccion-titulo {
+    margin: 2px 0 0;
+    font-size: var(--s-texto-xl);
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    line-height: var(--s-interlineado-titulo);
+    color: var(--s-texto);
+}
+
+.s-seccion-descripcion {
+    max-width: 75ch;
+    margin: 0 0 var(--s-esp-5);
+    font-size: var(--s-texto-sm);
+    line-height: var(--s-interlineado);
+    color: var(--s-texto-suave);
+}
+
+.s-graficos-cabecera {
+    margin-bottom: var(--s-esp-4);
+}
+
+/* Indicador del alcance de los datos (todo el sistema / mis tickets) */
+.s-alcance {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--s-esp-2);
+    padding: 6px 12px;
+    border: 1px solid var(--s-cian-100);
+    border-radius: var(--s-radio-pildora);
+    background: var(--s-cian-50);
+    color: var(--s-cian-700);
+    font-size: var(--s-texto-xs);
+    font-weight: var(--s-peso-semi);
+}
+
+
+/* --------------------------------------------------------------------------
+   2. REJILLA DE INDICADORES
+   -------------------------------------------------------------------------- */
+
+.s-kpis {
+    display: grid;
+    grid-template-columns: repeat(12, minmax(0, 1fr));
+    gap: var(--s-esp-4);
+}
+
+.s-kpi-principal { grid-column: span 4; }
+.s-kpi-estado    { grid-column: span 3; }
+
+
+/* --------------------------------------------------------------------------
+   3. TARJETA DE INDICADOR (amplía .s-kpi de tema.css)
+   -------------------------------------------------------------------------- */
+
+.s-kpis .s-kpi {
+    --kpi-color: var(--s-cian-600);
+    --kpi-fondo: var(--s-cian-50);
+    position: relative;
+    gap: var(--s-esp-2);
+    min-width: 0;
+    padding: var(--s-esp-4) var(--s-esp-5);
+    overflow: hidden;
+    transition: border-color var(--s-transicion), box-shadow var(--s-transicion);
+}
+
+.s-kpis .s-kpi:hover {
+    border-color: var(--s-borde-fuerte);
+    box-shadow: var(--s-sombra-2);
+}
+
+.s-kpi-cabecera {
+    display: flex;
+    align-items: center;
+    gap: var(--s-esp-3);
+    min-width: 0;
+}
+
+.s-kpi-icono {
+    display: grid;
+    place-items: center;
+    width: 34px;
+    height: 34px;
+    flex-shrink: 0;
+    border-radius: var(--s-radio-md);
+    background: var(--kpi-fondo);
+    color: var(--kpi-color);
+    font-size: 15px;
+}
+
+.s-kpis .s-kpi-etiqueta {
+    min-width: 0;
+    font-weight: var(--s-peso-semi);
+    line-height: 1.3;
+}
+
+.s-kpis .s-kpi-valor {
+    font-size: 2rem;
+    letter-spacing: -0.02em;
+}
+
+.s-kpi-principal .s-kpi-valor {
+    font-size: 2.5rem;
+}
+
+/* Texto en lugar de número («Sin datos suficientes») */
+.s-kpis .s-kpi-valor-texto {
+    font-family: var(--s-fuente);
+    font-size: var(--s-texto-lg);
+    font-weight: var(--s-peso-fuerte);
+    line-height: 1.3;
+    letter-spacing: 0;
+    color: var(--s-texto-suave);
+}
+
+.s-kpi-unidad {
+    margin-left: 4px;
+    font-size: 0.5em;
+    font-weight: var(--s-peso-semi);
+    color: var(--s-texto-suave);
+}
+
+.s-kpis .s-kpi-nota {
+    line-height: 1.45;
+}
+
+/* Barra de proporción respecto a los tickets activos */
+.s-kpi-barra {
+    display: block;
+    height: 6px;
+    border-radius: var(--s-radio-pildora);
+    background: var(--s-superficie-hundida);
+    overflow: hidden;
+}
+
+.s-kpi-barra > span {
+    display: block;
+    height: 100%;
+    min-width: 0;
+    border-radius: inherit;
+    background: var(--kpi-color);
+}
+
+/* Archivados: barra discontinua (no forman parte de los activos) */
+.s-kpi-barra-vacia {
+    background: repeating-linear-gradient(90deg, var(--s-borde) 0 6px, transparent 6px 10px);
+}
+
+/* Enlace de acción dentro del indicador */
+.s-kpi-accion {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    width: fit-content;
+    margin-top: 2px;
+    color: var(--s-ambar-700);
+    font-size: var(--s-texto-xs);
+    font-weight: var(--s-peso-fuerte);
+    text-decoration: none;
+}
+
+.s-kpi-accion:hover {
+    text-decoration: underline;
+    text-underline-offset: 3px;
+}
+
+/* Variantes de color (semántica de tema.css) */
+.s-kpi-sin-asignar { --kpi-color: var(--s-ambar-700); --kpi-fondo: var(--s-ambar-50); }
+.s-kpi-tiempo      { --kpi-color: var(--s-cian-700);  --kpi-fondo: var(--s-cian-50); }
+.s-kpi-pendiente   { --kpi-color: var(--s-estado-pendiente); --kpi-fondo: var(--s-estado-pendiente-fondo); }
+.s-kpi-proceso     { --kpi-color: var(--s-estado-proceso);   --kpi-fondo: var(--s-estado-proceso-fondo); }
+.s-kpi-resuelta    { --kpi-color: var(--s-estado-resuelta);  --kpi-fondo: var(--s-estado-resuelta-fondo); }
+.s-kpi-archivado   { --kpi-color: var(--s-estado-archivado-texto); --kpi-fondo: var(--s-estado-archivado-fondo); }
+
+/* Icono de los estados con tono de texto accesible */
+.s-kpi-pendiente .s-kpi-icono { color: var(--s-estado-pendiente-texto); }
+.s-kpi-proceso   .s-kpi-icono { color: var(--s-estado-proceso-texto); }
+.s-kpi-resuelta  .s-kpi-icono { color: var(--s-estado-resuelta-texto); }
+
+/* Indicador protagonista: tickets activos sobre grafito con puntos */
+.s-kpis .s-kpi-destacado {
+    border-color: var(--s-grafito-800);
+    background-color: var(--s-grafito-900);
+    background-image:
+        linear-gradient(120deg, var(--s-grafito-900) 35%, rgba(15, 23, 34, 0.6)),
+        radial-gradient(rgba(14, 165, 183, 0.22) 1px, transparent 1px);
+    background-size: 100% 100%, 16px 16px;
+}
+
+.s-kpis .s-kpi-destacado:hover {
+    border-color: var(--s-grafito-700);
+}
+
+.s-kpi-destacado .s-kpi-icono {
+    background: rgba(14, 165, 183, 0.16);
+    color: var(--s-cian-400);
+}
+
+.s-kpis .s-kpi-destacado .s-kpi-etiqueta { color: var(--s-texto-invertido); }
+
+/* Indicador que requiere atención: banda ámbar superior */
+.s-kpis .s-kpi-atencion::before {
+    content: "";
+    position: absolute;
+    inset: 0 0 auto;
+    height: 3px;
+    background: var(--s-ambar-400);
+}
+
+
+/* --------------------------------------------------------------------------
+   4. NOTAS METODOLÓGICAS
+   -------------------------------------------------------------------------- */
+
+.s-notas {
+    margin-top: var(--s-esp-4);
+    border: 1px solid var(--s-borde);
+    border-radius: var(--s-radio-md);
+    background: var(--s-superficie);
+    font-size: var(--s-texto-sm);
+}
+
+.s-notas summary {
+    display: flex;
+    align-items: center;
+    gap: var(--s-esp-2);
+    padding: var(--s-esp-3) var(--s-esp-4);
+    color: var(--s-texto-suave);
+    font-weight: var(--s-peso-semi);
+    cursor: pointer;
+    list-style: none;
+    border-radius: var(--s-radio-md);
+}
+
+.s-notas summary::-webkit-details-marker { display: none; }
+
+.s-notas summary::after {
+    content: "";
+    width: 7px;
+    height: 7px;
+    margin-left: auto;
+    border-right: 2px solid currentColor;
+    border-bottom: 2px solid currentColor;
+    transform: rotate(45deg) translateY(-2px);
+    transition: transform var(--s-transicion);
+}
+
+.s-notas[open] summary::after {
+    transform: rotate(-135deg) translateY(-2px);
+}
+
+.s-notas summary:hover { color: var(--s-texto); }
+
+.s-notas summary i { color: var(--s-cian-600); }
+
+.s-notas summary:focus-visible {
+    outline: none;
+    box-shadow: var(--s-anillo-foco);
+}
+
+.s-notas ul {
+    margin: 0;
+    padding: 0 var(--s-esp-5) var(--s-esp-4) calc(var(--s-esp-4) + 22px);
+    color: var(--s-texto-suave);
+    line-height: var(--s-interlineado);
+}
+
+.s-notas li + li { margin-top: 6px; }
+
+
+/* --------------------------------------------------------------------------
+   5. REJILLA DE GRÁFICOS
+   -------------------------------------------------------------------------- */
+
+.s-graficos-rejilla {
+    display: grid;
+    grid-template-columns: repeat(12, minmax(0, 1fr));
+    gap: var(--s-esp-4);
+}
+
+.s-grafico-estado,
+.s-grafico-prioridad,
+.s-grafico-categoria { grid-column: span 4; }
+.s-grafico-tecnicos  { grid-column: span 6; }
+
+.s-grafico {
+    display: flex;
+    flex-direction: column;
+    gap: var(--s-esp-4);
+    min-width: 0;
+    padding: var(--s-esp-5);
+    border: 1px solid var(--s-borde);
+    border-radius: var(--s-radio-lg);
+    background: var(--s-superficie);
+    box-shadow: var(--s-sombra-1);
+}
+
+.s-grafico-cabecera {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--s-esp-3);
+}
+
+.s-grafico-icono {
+    display: grid;
+    place-items: center;
+    width: 32px;
+    height: 32px;
+    flex-shrink: 0;
+    border-radius: var(--s-radio-md);
+    background: var(--s-grafito-900);
+    color: var(--s-cian-400);
+    font-size: 13px;
+}
+
+.s-grafico-cabecera h3 {
+    margin: 0 0 2px;
+    font-size: var(--s-texto-md);
+    font-weight: var(--s-peso-fuerte);
+    line-height: 1.3;
+    color: var(--s-texto);
+}
+
+.s-grafico-cabecera p {
+    margin: 0;
+    font-size: var(--s-texto-xs);
+    line-height: 1.45;
+    color: var(--s-texto-suave);
+}
+
+/* Contenedor con altura fija: los gráficos usan maintainAspectRatio: false */
+.s-grafico-lienzo {
+    position: relative;
+    height: 240px;
+    min-width: 0;
+}
+
+.s-grafico-tecnicos .s-grafico-lienzo { height: 260px; }
+
+.s-grafico-lienzo-vacio,
+.s-grafico-tecnicos .s-grafico-lienzo-vacio { height: 120px; opacity: 0.5; }
+
+.s-grafico-vacio {
+    display: flex;
+    align-items: center;
+    gap: var(--s-esp-2);
+    margin: 0;
+    padding: var(--s-esp-3) var(--s-esp-4);
+    border: 1px dashed var(--s-borde-fuerte);
+    border-radius: var(--s-radio-md);
+    color: var(--s-texto-suave);
+    font-size: var(--s-texto-sm);
+}
+
+
+/* --------------------------------------------------------------------------
+   6. TABLAS DE DATOS DE CADA GRÁFICO
+   -------------------------------------------------------------------------- */
+
+.s-datos {
+    margin-top: auto;
+    border-top: 1px solid var(--s-borde);
+    padding-top: var(--s-esp-3);
+}
+
+.s-datos summary {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--s-cian-700);
+    font-size: var(--s-texto-xs);
+    font-weight: var(--s-peso-fuerte);
+    cursor: pointer;
+    list-style: none;
+    border-radius: var(--s-radio-sm);
+}
+
+.s-datos summary::-webkit-details-marker { display: none; }
+
+.s-datos summary::before {
+    content: "+";
+    display: inline-grid;
+    place-items: center;
+    width: 16px;
+    height: 16px;
+    border-radius: 4px;
+    background: var(--s-cian-50);
+    font-family: var(--s-fuente-mono);
+    font-size: 12px;
+    line-height: 1;
+}
+
+.s-datos[open] summary::before { content: "−"; }
+
+.s-datos summary:focus-visible {
+    outline: none;
+    box-shadow: var(--s-anillo-foco);
+}
+
+.s-tabla-datos {
+    width: 100%;
+    margin-top: var(--s-esp-3);
+    border-collapse: collapse;
+    font-size: var(--s-texto-sm);
+}
+
+.s-tabla-datos th {
+    padding: 0 0 6px;
+    border-bottom: 1px solid var(--s-borde);
+    color: var(--s-texto-suave);
+    font-size: var(--s-texto-xs);
+    font-weight: var(--s-peso-semi);
+    text-align: left;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+}
+
+.s-tabla-datos td {
+    padding: 8px 0;
+    border-bottom: 1px solid var(--s-superficie-hundida);
+    color: var(--s-texto);
+    overflow-wrap: anywhere;
+}
+
+.s-tabla-datos th:last-child,
+.s-tabla-datos td:last-child {
+    width: 1%;
+    padding-left: var(--s-esp-4);
+    text-align: right;
+    white-space: nowrap;
+}
+
+.s-tabla-datos td:last-child {
+    font-family: var(--s-fuente-mono);
+    font-weight: var(--s-peso-semi);
+    font-variant-numeric: tabular-nums;
+}
+
+.s-tabla-datos tr:last-child td { border-bottom: 0; }
+
+.s-tabla-datos .s-mono {
+    color: var(--s-texto-suave);
+    font-size: 0.9em;
+}
+
+
+/* --------------------------------------------------------------------------
+   7. ADAPTACIÓN A PANTALLAS
+   -------------------------------------------------------------------------- */
+
+/* Tableta y portátiles pequeños */
+@media (max-width: 1200px) {
+    .s-kpi-estado { grid-column: span 6; }
+
+    .s-grafico-estado,
+    .s-grafico-prioridad { grid-column: span 6; }
+    .s-grafico-categoria { grid-column: 1 / -1; }
+}
+
+/* Indicadores principales: en pantallas medianas, el tiempo ocupa la fila */
+@media (max-width: 900px) {
+    .s-kpi-principal { grid-column: span 6; }
+    .s-kpi-tiempo    { grid-column: 1 / -1; }
+}
+
+/* Móvil */
+@media (max-width: 760px) {
+    .s-kpis,
+    .s-graficos-rejilla { gap: var(--s-esp-3); }
+
+    .s-kpi-estado { grid-column: span 6; }
+
+    .s-grafico-estado,
+    .s-grafico-prioridad,
+    .s-grafico-categoria,
+    .s-grafico-tecnicos { grid-column: 1 / -1; }
+
+    .s-grafico { padding: var(--s-esp-4); }
+    .s-grafico-lienzo { height: 220px; }
+    .s-grafico-tecnicos .s-grafico-lienzo { height: 240px; }
+}
+
+@media (max-width: 480px) {
+    .s-kpis .s-kpi { padding: var(--s-esp-3) var(--s-esp-4); }
+    .s-kpi-icono { width: 30px; height: 30px; font-size: 13px; }
+    .s-kpis .s-kpi-etiqueta { font-size: var(--s-texto-xs); }
+    .s-kpis .s-kpi-valor { font-size: 1.6rem; }
+    .s-kpi-principal .s-kpi-valor { font-size: 2rem; }
+    .s-kpis .s-kpi-nota { font-size: 11px; }
+    .s-alcance { width: 100%; justify-content: center; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .s-kpis .s-kpi,
+    .s-notas summary::after { transition: none; }
+}

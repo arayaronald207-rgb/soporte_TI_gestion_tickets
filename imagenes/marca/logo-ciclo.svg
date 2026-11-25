@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-labelledby="t">
+  <title id="t">Soporte TI · Ciclo colaborativo</title>
+  <!-- Versión principal para fondos oscuros (grafito). -->
+  <defs>
+    <linearGradient id="a" x1="8" y1="8" x2="56" y2="56" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#5FD3E0"/>
+      <stop offset="1" stop-color="#0EA5B7"/>
+    </linearGradient>
+  </defs>
+  <!-- Anillo de tres segmentos: el ciclo de atención -->
+  <g fill="none" stroke="url(#a)" stroke-width="5" stroke-linecap="round">
+    <path d="M39.52 11.33A22 22 0 0 1 53.67 35.82"/>
+    <path d="M46.14 48.85A22 22 0 0 1 17.86 48.85"/>
+    <path d="M10.33 35.82A22 22 0 0 1 24.48 11.33"/>
+  </g>
+  <!-- Solicitante, administrador y técnico -->
+  <g fill="#FFFFFF">
+    <circle cx="32" cy="10" r="3.6"/>
+    <circle cx="51.05" cy="43" r="3.6"/>
+    <circle cx="12.95" cy="43" r="3.6"/>
+  </g>
+  <!-- Resolución -->
+  <path d="M23.5 32.5l6 6 11.5-12" fill="none" stroke="#FFFFFF" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

@@ -1,0 +1,814 @@
+/* ==========================================================================
+   GESTIÓN DE INCIDENCIAS · IDENTIDAD VISUAL «SEÑAL»
+   Etapa 0: fundamentos (variables de diseño + componentes base).
+
+   Reglas de esta hoja:
+   1. Se carga ANTES de los CSS existentes, de modo que los estilos
+      actuales mantienen la prioridad mientras dura la migración.
+   2. No contiene selectores de elementos (body, input, table, form...)
+      ni de clases ya usadas por el proyecto. Todo componente usa el
+      prefijo «s-» y solo se activa cuando una página lo incorpora.
+   3. Las variables usan el prefijo «--s-» para no chocar con las
+      variables existentes (por ejemplo, --login-*).
+
+   Contrastes verificados (WCAG 2.1, texto normal ≥ 4.5:1):
+   - Blanco sobre --s-cian-600 (#0B7C8A) ........ 4.92:1
+   - --s-cian-400 (#0EA5B7) sobre grafito ....... 6.08:1
+   - --s-ambar-400 (#F2A33A) sobre grafito ...... 8.64:1
+   - --s-ambar-500 (#C97A0B) sobre blanco ....... 3.35:1 (elementos gráficos ≥ 3:1)
+   - --s-texto-suave (#5B6675) sobre blanco ..... 5.83:1
+   - Textos de insignias sobre su fondo ......... 5.5:1 a 6.8:1
+   ========================================================================== */
+
+
+/* --------------------------------------------------------------------------
+   0. FUENTES LOCALES (Etapa 1)
+   Archivos WOFF2 de peso variable, subconjunto «latin» (incluye á, é, ñ, ¿, ¡),
+   obtenidos de Google Fonts. Licencia SIL Open Font License 1.1:
+   ver fonts/OFL-PlusJakartaSans.txt y fonts/OFL-JetBrainsMono.txt.
+   -------------------------------------------------------------------------- */
+
+@font-face {
+    font-family: "Plus Jakarta Sans";
+    font-style: normal;
+    font-weight: 400 800;
+    font-display: swap;
+    src: url("../fonts/PlusJakartaSans-latin.woff2") format("woff2");
+}
+
+@font-face {
+    font-family: "JetBrains Mono";
+    font-style: normal;
+    font-weight: 400 700;
+    font-display: swap;
+    src: url("../fonts/JetBrainsMono-latin.woff2") format("woff2");
+}
+
+
+/* --------------------------------------------------------------------------
+   1. VARIABLES DE DISEÑO
+   -------------------------------------------------------------------------- */
+
+:root {
+    /* Grafito: base oscura (menú lateral, login, encabezados) */
+    --s-grafito-950: #0A1018;
+    --s-grafito-900: #0F1722;
+    --s-grafito-800: #18222F;
+    --s-grafito-700: #243142;
+    --s-grafito-600: #3A4859;
+
+    /* Cian señal: acento principal.
+       400 solo sobre fondos oscuros o como decoración;
+       600/700 para botones y texto sobre fondos claros. */
+    --s-cian-50:  #E8F8FA;
+    --s-cian-100: #C9EFF4;
+    --s-cian-400: #0EA5B7;
+    --s-cian-600: #0B7C8A;
+    --s-cian-700: #0A6E7B;
+
+    /* Ámbar: acento secundario («requiere atención») */
+    --s-ambar-50:  #FFF6E6;
+    --s-ambar-400: #F2A33A;   /* luminoso: sobre grafito o como decoración */
+    --s-ambar-500: #C97A0B;   /* gráfico sobre fondos claros: 3.35:1 sobre blanco */
+    --s-ambar-700: #8A5A0B;
+
+    /* Neutros y superficies */
+    --s-blanco: #FFFFFF;
+    --s-fondo: #F6F7F9;
+    --s-superficie: #FFFFFF;
+    --s-superficie-hundida: #EEF1F4;
+    --s-borde: #E1E5EA;
+    --s-borde-fuerte: #C9D0D8;
+    --s-texto: #0F1722;
+    --s-texto-suave: #5B6675;
+    --s-texto-tenue: #8A94A3;          /* solo para texto grande o decorativo */
+    --s-texto-invertido: #F3F6F9;
+    --s-texto-invertido-suave: #9AA6B5;
+
+    /* Semántica de ESTADO (única para insignias, gráficos y línea de tiempo) */
+    --s-estado-pendiente: var(--s-ambar-500);
+    --s-estado-pendiente-fondo: #FFF6E6;
+    --s-estado-pendiente-texto: #8A5A0B;
+
+    --s-estado-proceso: #2563EB;
+    --s-estado-proceso-fondo: #EAF1FF;
+    --s-estado-proceso-texto: #1D4ED8;
+
+    --s-estado-resuelta: #16A34A;
+    --s-estado-resuelta-fondo: #E8F6EE;
+    --s-estado-resuelta-texto: #166534;
+
+    --s-estado-archivado: #8A94A3;
+    --s-estado-archivado-fondo: #EEF1F4;
+    --s-estado-archivado-texto: #475467;
+
+    /* Semántica de PRIORIDAD (escala neutro → rojo) */
+    --s-prioridad-baja: #8A94A3;
+    --s-prioridad-baja-fondo: #EEF1F4;
+    --s-prioridad-baja-texto: #475467;
+
+    --s-prioridad-media: var(--s-ambar-500);
+    --s-prioridad-media-fondo: #FFF6E6;
+    --s-prioridad-media-texto: #9A3412;
+
+    --s-prioridad-alta: #DC2626;
+    --s-prioridad-alta-fondo: #FDECEA;
+    --s-prioridad-alta-texto: #B42318;
+
+    /* Retroalimentación */
+    --s-exito: #16A34A;
+    --s-exito-fondo: #E8F6EE;
+    --s-exito-texto: #166534;
+    --s-error: #DC2626;
+    --s-error-fondo: #FDECEA;
+    --s-error-texto: #B42318;
+    --s-aviso: var(--s-ambar-400);
+    --s-aviso-fondo: var(--s-ambar-50);
+    --s-aviso-texto: var(--s-ambar-700);
+    --s-info: var(--s-cian-600);
+    --s-info-fondo: var(--s-cian-50);
+    --s-info-texto: var(--s-cian-700);
+
+    /* Paleta para gráficos (Etapa 5). Las categorías usan tonos
+       distinguibles entre sí; estados y prioridades reutilizan la
+       semántica anterior para que todo el sistema hable igual. */
+    --s-grafico-1: #0B7C8A;
+    --s-grafico-2: #F2A33A;
+    --s-grafico-3: #2563EB;
+    --s-grafico-4: #8A94A3;
+    --s-grafico-5: #7C3AED;
+    --s-grafico-rejilla: #EEF1F4;
+
+    /* Tipografía.
+       «Plus Jakarta Sans» y «JetBrains Mono» se usan solo si están
+       disponibles; mientras no se incorporen, se aplican las fuentes
+       del sistema de la lista. */
+    --s-fuente: "Plus Jakarta Sans", "Segoe UI", system-ui, -apple-system, Roboto, Arial, sans-serif;
+    --s-fuente-mono: "JetBrains Mono", "Cascadia Mono", Consolas, "SFMono-Regular", Menlo, monospace;
+
+    --s-texto-xs: 0.75rem;    /* 12px */
+    --s-texto-sm: 0.875rem;   /* 14px */
+    --s-texto-md: 1rem;       /* 16px */
+    --s-texto-lg: 1.125rem;   /* 18px */
+    --s-texto-xl: 1.375rem;   /* 22px */
+    --s-texto-2xl: 1.75rem;   /* 28px */
+    --s-texto-3xl: 2.25rem;   /* 36px */
+
+    --s-peso-normal: 400;
+    --s-peso-medio: 500;
+    --s-peso-semi: 600;
+    --s-peso-fuerte: 700;
+
+    --s-interlineado: 1.55;
+    --s-interlineado-titulo: 1.2;
+
+    /* Espaciado (escala de 4px) */
+    --s-esp-1: 4px;
+    --s-esp-2: 8px;
+    --s-esp-3: 12px;
+    --s-esp-4: 16px;
+    --s-esp-5: 20px;
+    --s-esp-6: 24px;
+    --s-esp-8: 32px;
+    --s-esp-10: 40px;
+    --s-esp-12: 48px;
+
+    /* Bordes */
+    --s-radio-sm: 6px;
+    --s-radio-md: 10px;
+    --s-radio-lg: 14px;
+    --s-radio-xl: 20px;
+    --s-radio-pildora: 999px;
+
+    /* Sombras (tintadas con grafito, no negro puro) */
+    --s-sombra-1: 0 1px 2px rgba(15, 23, 34, 0.06);
+    --s-sombra-2: 0 4px 12px rgba(15, 23, 34, 0.07), 0 1px 2px rgba(15, 23, 34, 0.05);
+    --s-sombra-3: 0 12px 32px rgba(15, 23, 34, 0.12), 0 2px 6px rgba(15, 23, 34, 0.06);
+    --s-anillo-foco: 0 0 0 3px rgba(14, 165, 183, 0.35);
+
+    /* Movimiento */
+    --s-transicion: 160ms cubic-bezier(0.2, 0, 0, 1);
+
+    /* Medidas de estructura (Etapa 1) */
+    --s-ancho-menu: 256px;
+    --s-alto-barra: 64px;
+    --s-ancho-contenido: 1440px;
+}
+
+
+/* --------------------------------------------------------------------------
+   2. UTILIDADES
+   -------------------------------------------------------------------------- */
+
+/* Oculta visualmente sin ocultar a lectores de pantalla */
+.s-solo-lector {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+}
+
+/* Identificadores técnicos: número de ticket, fechas, IDs */
+.s-mono {
+    font-family: var(--s-fuente-mono);
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.01em;
+}
+
+.s-id-ticket {
+    font-family: var(--s-fuente-mono);
+    font-weight: var(--s-peso-semi);
+    font-size: 0.92em;
+    color: var(--s-cian-700);
+    font-variant-numeric: tabular-nums;
+}
+
+.s-texto-suave { color: var(--s-texto-suave); }
+
+/* Rótulo pequeño en mayúsculas (sobre títulos de sección) */
+.s-rotulo {
+    display: inline-block;
+    font-family: var(--s-fuente);
+    font-size: var(--s-texto-xs);
+    font-weight: var(--s-peso-fuerte);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--s-cian-700);
+}
+
+
+/* --------------------------------------------------------------------------
+   3. FIRMA VISUAL: cuadrícula de puntos y línea de «pulso»
+   -------------------------------------------------------------------------- */
+
+/* Fondo de puntos sutil. Variante clara y variante para grafito. */
+.s-puntos {
+    background-image: radial-gradient(rgba(15, 23, 34, 0.09) 1px, transparent 1px);
+    background-size: 18px 18px;
+}
+
+.s-puntos-oscuro {
+    background-color: var(--s-grafito-900);
+    background-image: radial-gradient(rgba(14, 165, 183, 0.16) 1px, transparent 1px);
+    background-size: 18px 18px;
+}
+
+/* Trazo tipo monitor bajo el logotipo o títulos destacados */
+.s-pulso {
+    display: block;
+    width: 72px;
+    height: 14px;
+    background: no-repeat center / 100% 100% url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 72 14' fill='none'%3E%3Cpath d='M0 7h22l4-6 6 12 5-9 3 3h32' stroke='%230EA5B7' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+}
+
+
+/* --------------------------------------------------------------------------
+   4. BOTONES
+   -------------------------------------------------------------------------- */
+
+.s-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--s-esp-2);
+    min-height: 40px;
+    padding: 0 var(--s-esp-4);
+    border: 1px solid transparent;
+    border-radius: var(--s-radio-md);
+    font-family: var(--s-fuente);
+    font-size: var(--s-texto-sm);
+    font-weight: var(--s-peso-semi);
+    line-height: 1;
+    text-decoration: none;
+    white-space: nowrap;
+    cursor: pointer;
+    transition: background-color var(--s-transicion), border-color var(--s-transicion),
+                color var(--s-transicion), box-shadow var(--s-transicion);
+}
+
+.s-btn:focus-visible {
+    outline: none;
+    box-shadow: var(--s-anillo-foco);
+}
+
+.s-btn:disabled,
+.s-btn[aria-disabled="true"] {
+    opacity: 0.55;
+    cursor: not-allowed;
+}
+
+.s-btn-primario {
+    background: var(--s-cian-600);
+    color: var(--s-blanco);
+}
+.s-btn-primario:hover { background: var(--s-cian-700); }
+
+.s-btn-secundario {
+    background: var(--s-superficie);
+    border-color: var(--s-borde-fuerte);
+    color: var(--s-texto);
+}
+.s-btn-secundario:hover {
+    border-color: var(--s-cian-600);
+    color: var(--s-cian-700);
+}
+
+.s-btn-fantasma {
+    background: transparent;
+    color: var(--s-texto-suave);
+}
+.s-btn-fantasma:hover {
+    background: var(--s-superficie-hundida);
+    color: var(--s-texto);
+}
+
+/* Acciones irreversibles: archivar, desactivar usuario */
+.s-btn-riesgo {
+    background: var(--s-superficie);
+    border-color: #F1B8B2;
+    color: var(--s-error-texto);
+}
+.s-btn-riesgo:hover {
+    background: var(--s-error-fondo);
+    border-color: var(--s-error);
+}
+
+.s-btn-sm {
+    min-height: 32px;
+    padding: 0 var(--s-esp-3);
+    font-size: var(--s-texto-xs);
+    border-radius: var(--s-radio-sm);
+}
+
+/* Botón cuadrado solo con icono (requiere aria-label) */
+.s-btn-icono {
+    width: 36px;
+    min-height: 36px;
+    padding: 0;
+}
+
+
+/* --------------------------------------------------------------------------
+   5. INSIGNIAS DE ESTADO Y PRIORIDAD
+   -------------------------------------------------------------------------- */
+
+.s-insignia {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 3px 10px;
+    border-radius: var(--s-radio-pildora);
+    font-family: var(--s-fuente);
+    font-size: var(--s-texto-xs);
+    font-weight: var(--s-peso-semi);
+    line-height: 1.5;
+    white-space: nowrap;
+    background: var(--s-superficie-hundida);
+    color: var(--s-texto-suave);
+}
+
+/* Punto de color: el color no es la única señal, el texto acompaña */
+.s-insignia::before {
+    content: "";
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: currentColor;
+    flex-shrink: 0;
+}
+
+.s-insignia-pendiente { background: var(--s-estado-pendiente-fondo); color: var(--s-estado-pendiente-texto); }
+.s-insignia-proceso   { background: var(--s-estado-proceso-fondo);   color: var(--s-estado-proceso-texto); }
+.s-insignia-resuelta  { background: var(--s-estado-resuelta-fondo);  color: var(--s-estado-resuelta-texto); }
+.s-insignia-archivado { background: var(--s-estado-archivado-fondo); color: var(--s-estado-archivado-texto); }
+
+.s-insignia-baja  { background: var(--s-prioridad-baja-fondo);  color: var(--s-prioridad-baja-texto); }
+.s-insignia-media { background: var(--s-prioridad-media-fondo); color: var(--s-prioridad-media-texto); }
+.s-insignia-alta  { background: var(--s-prioridad-alta-fondo);  color: var(--s-prioridad-alta-texto); }
+
+/* Barra lateral de prioridad para filas o tarjetas de ticket */
+.s-borde-prioridad-baja  { box-shadow: inset 3px 0 0 var(--s-prioridad-baja); }
+.s-borde-prioridad-media { box-shadow: inset 3px 0 0 var(--s-prioridad-media); }
+.s-borde-prioridad-alta  { box-shadow: inset 3px 0 0 var(--s-prioridad-alta); }
+
+
+/* --------------------------------------------------------------------------
+   6. TARJETAS E INDICADORES (KPI)
+   -------------------------------------------------------------------------- */
+
+.s-tarjeta {
+    background: var(--s-superficie);
+    border: 1px solid var(--s-borde);
+    border-radius: var(--s-radio-lg);
+    box-shadow: var(--s-sombra-1);
+    padding: var(--s-esp-6);
+    font-family: var(--s-fuente);
+    color: var(--s-texto);
+}
+
+.s-tarjeta-titulo {
+    margin: 0 0 var(--s-esp-1);
+    font-size: var(--s-texto-lg);
+    font-weight: var(--s-peso-fuerte);
+    line-height: var(--s-interlineado-titulo);
+}
+
+.s-tarjeta-subtitulo {
+    margin: 0;
+    font-size: var(--s-texto-sm);
+    color: var(--s-texto-suave);
+}
+
+.s-kpi {
+    display: flex;
+    flex-direction: column;
+    gap: var(--s-esp-2);
+    padding: var(--s-esp-5);
+    background: var(--s-superficie);
+    border: 1px solid var(--s-borde);
+    border-radius: var(--s-radio-lg);
+    box-shadow: var(--s-sombra-1);
+    font-family: var(--s-fuente);
+}
+
+.s-kpi-etiqueta {
+    font-size: var(--s-texto-sm);
+    font-weight: var(--s-peso-medio);
+    color: var(--s-texto-suave);
+}
+
+.s-kpi-valor {
+    font-family: var(--s-fuente-mono);
+    font-size: var(--s-texto-3xl);
+    font-weight: var(--s-peso-fuerte);
+    line-height: 1;
+    color: var(--s-texto);
+    font-variant-numeric: tabular-nums;
+}
+
+.s-kpi-nota {
+    font-size: var(--s-texto-xs);
+    color: var(--s-texto-suave);
+}
+
+/* KPI que pide acción (por ejemplo, tickets sin asignar) */
+.s-kpi-atencion {
+    border-color: #F5D3A0;
+    background: linear-gradient(180deg, var(--s-ambar-50), var(--s-superficie) 70%);
+}
+
+/* KPI protagonista sobre grafito */
+.s-kpi-destacado {
+    background: var(--s-grafito-900);
+    border-color: var(--s-grafito-700);
+}
+.s-kpi-destacado .s-kpi-etiqueta,
+.s-kpi-destacado .s-kpi-nota { color: var(--s-texto-invertido-suave); }
+.s-kpi-destacado .s-kpi-valor { color: var(--s-cian-400); }
+
+
+/* --------------------------------------------------------------------------
+   7. CAMPOS DE FORMULARIO
+   (Clases opcionales: no cambian los name, action ni la validación.)
+   -------------------------------------------------------------------------- */
+
+.s-campo {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    font-family: var(--s-fuente);
+}
+
+.s-etiqueta {
+    font-size: var(--s-texto-sm);
+    font-weight: var(--s-peso-semi);
+    color: var(--s-texto);
+}
+
+.s-control {
+    width: 100%;
+    min-height: 42px;
+    padding: 10px 12px;
+    border: 1px solid var(--s-borde-fuerte);
+    border-radius: var(--s-radio-md);
+    background: var(--s-superficie);
+    color: var(--s-texto);
+    font-family: inherit;
+    font-size: var(--s-texto-md);   /* 16px evita el zoom automático en iOS */
+    transition: border-color var(--s-transicion), box-shadow var(--s-transicion);
+}
+
+.s-control::placeholder { color: var(--s-texto-tenue); }
+
+.s-control:hover { border-color: var(--s-grafito-600); }
+
+.s-control:focus {
+    outline: none;
+    border-color: var(--s-cian-600);
+    box-shadow: var(--s-anillo-foco);
+}
+
+.s-control[aria-invalid="true"] {
+    border-color: var(--s-error);
+}
+
+.s-ayuda {
+    font-size: var(--s-texto-xs);
+    color: var(--s-texto-suave);
+}
+
+.s-ayuda-error {
+    font-size: var(--s-texto-xs);
+    font-weight: var(--s-peso-semi);
+    color: var(--s-error-texto);
+}
+
+
+/* --------------------------------------------------------------------------
+   8. CHIPS (filtros activos) Y PESTAÑAS
+   -------------------------------------------------------------------------- */
+
+.s-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 6px 4px 12px;
+    border: 1px solid var(--s-cian-100);
+    border-radius: var(--s-radio-pildora);
+    background: var(--s-cian-50);
+    color: var(--s-cian-700);
+    font-family: var(--s-fuente);
+    font-size: var(--s-texto-xs);
+    font-weight: var(--s-peso-semi);
+    text-decoration: none;
+}
+
+.s-chip-quitar {
+    display: inline-grid;
+    place-items: center;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    color: inherit;
+    text-decoration: none;
+}
+.s-chip-quitar:hover { background: var(--s-cian-100); }
+.s-chip-quitar:focus-visible { outline: none; box-shadow: var(--s-anillo-foco); }
+
+.s-pestanas {
+    display: inline-flex;
+    gap: 2px;
+    padding: 3px;
+    border-radius: var(--s-radio-md);
+    background: var(--s-superficie-hundida);
+    font-family: var(--s-fuente);
+}
+
+.s-pestana {
+    padding: 7px 14px;
+    border-radius: 8px;
+    color: var(--s-texto-suave);
+    font-size: var(--s-texto-sm);
+    font-weight: var(--s-peso-semi);
+    text-decoration: none;
+    transition: background-color var(--s-transicion), color var(--s-transicion);
+}
+.s-pestana:hover { color: var(--s-texto); }
+.s-pestana:focus-visible { outline: none; box-shadow: var(--s-anillo-foco); }
+
+.s-pestana[aria-current="page"],
+.s-pestana.s-activa {
+    background: var(--s-superficie);
+    color: var(--s-texto);
+    box-shadow: var(--s-sombra-1);
+}
+
+
+/* --------------------------------------------------------------------------
+   9. AVATAR CON INICIALES (técnicos y usuarios)
+   -------------------------------------------------------------------------- */
+
+.s-avatar {
+    display: inline-grid;
+    place-items: center;
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    background: var(--s-grafito-800);
+    color: var(--s-cian-400);
+    font-family: var(--s-fuente-mono);
+    font-size: 11px;
+    font-weight: var(--s-peso-fuerte);
+    text-transform: uppercase;
+    flex-shrink: 0;
+}
+
+.s-avatar-vacio {
+    background: transparent;
+    border: 1px dashed var(--s-borde-fuerte);
+    color: var(--s-texto-tenue);
+}
+
+.s-persona {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--s-esp-2);
+    font-family: var(--s-fuente);
+    font-size: var(--s-texto-sm);
+}
+
+
+/* --------------------------------------------------------------------------
+   10. AVISOS (mensajes de éxito, error, información)
+   -------------------------------------------------------------------------- */
+
+.s-aviso {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--s-esp-3);
+    padding: var(--s-esp-3) var(--s-esp-4);
+    border: 1px solid transparent;
+    border-left-width: 4px;
+    border-radius: var(--s-radio-md);
+    font-family: var(--s-fuente);
+    font-size: var(--s-texto-sm);
+    line-height: var(--s-interlineado);
+}
+
+.s-aviso-exito { background: var(--s-exito-fondo); border-color: var(--s-exito); color: var(--s-exito-texto); }
+.s-aviso-error { background: var(--s-error-fondo); border-color: var(--s-error); color: var(--s-error-texto); }
+.s-aviso-alerta { background: var(--s-aviso-fondo); border-color: var(--s-aviso); color: var(--s-aviso-texto); }
+.s-aviso-info  { background: var(--s-info-fondo);  border-color: var(--s-info);  color: var(--s-info-texto); }
+
+
+/* --------------------------------------------------------------------------
+   11. ESTADO VACÍO
+   -------------------------------------------------------------------------- */
+
+.s-vacio {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--s-esp-2);
+    padding: var(--s-esp-10) var(--s-esp-6);
+    text-align: center;
+    font-family: var(--s-fuente);
+    color: var(--s-texto-suave);
+}
+
+.s-vacio-icono {
+    display: grid;
+    place-items: center;
+    width: 52px;
+    height: 52px;
+    margin-bottom: var(--s-esp-2);
+    border-radius: var(--s-radio-lg);
+    background: var(--s-cian-50);
+    color: var(--s-cian-600);
+    font-size: 22px;
+}
+
+.s-vacio-titulo {
+    margin: 0;
+    font-size: var(--s-texto-md);
+    font-weight: var(--s-peso-fuerte);
+    color: var(--s-texto);
+}
+
+
+/* --------------------------------------------------------------------------
+   12. LÍNEA DE TIEMPO (historial de seguimiento · Etapa 4)
+   -------------------------------------------------------------------------- */
+
+.s-linea-tiempo {
+    position: relative;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    font-family: var(--s-fuente);
+}
+
+.s-linea-tiempo::before {
+    content: "";
+    position: absolute;
+    top: 8px;
+    bottom: 8px;
+    left: 15px;
+    width: 2px;
+    background: var(--s-borde);
+}
+
+.s-evento {
+    position: relative;
+    padding: 0 0 var(--s-esp-6) 48px;
+}
+
+.s-evento-icono {
+    position: absolute;
+    left: 0;
+    top: 0;
+    display: grid;
+    place-items: center;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    border: 2px solid var(--s-superficie);
+    background: var(--s-superficie-hundida);
+    color: var(--s-texto-suave);
+    font-size: 13px;
+}
+
+.s-evento-creacion   .s-evento-icono { background: var(--s-grafito-900); color: var(--s-cian-400); }
+.s-evento-asignacion .s-evento-icono { background: var(--s-cian-50); color: var(--s-cian-700); }
+.s-evento-estado     .s-evento-icono { background: var(--s-estado-proceso-fondo); color: var(--s-estado-proceso-texto); }
+.s-evento-comentario .s-evento-icono { background: var(--s-ambar-50); color: var(--s-ambar-700); }
+.s-evento-archivado  .s-evento-icono { background: var(--s-estado-archivado-fondo); color: var(--s-estado-archivado-texto); }
+
+.s-evento-meta {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 4px var(--s-esp-3);
+    font-size: var(--s-texto-sm);
+}
+
+.s-evento-tiempo {
+    font-family: var(--s-fuente-mono);
+    font-size: var(--s-texto-xs);
+    color: var(--s-texto-suave);
+}
+
+/* Burbuja para comentarios de seguimiento */
+.s-evento-cuerpo {
+    margin-top: var(--s-esp-2);
+    padding: var(--s-esp-3) var(--s-esp-4);
+    border: 1px solid var(--s-borde);
+    border-radius: 4px var(--s-radio-lg) var(--s-radio-lg) var(--s-radio-lg);
+    background: var(--s-superficie);
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+    line-height: var(--s-interlineado);
+}
+
+/* Cambio «antes → después» */
+.s-cambio {
+    display: inline-flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--s-esp-2);
+    margin-top: var(--s-esp-2);
+    font-size: var(--s-texto-xs);
+}
+
+.s-cambio-flecha { color: var(--s-texto-tenue); }
+
+
+/* --------------------------------------------------------------------------
+   13. INDICADOR DEL CICLO DE VIDA (cambio de estado · Etapa 4)
+   -------------------------------------------------------------------------- */
+
+.s-pasos {
+    display: flex;
+    gap: var(--s-esp-2);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    font-family: var(--s-fuente);
+    font-size: var(--s-texto-xs);
+    font-weight: var(--s-peso-semi);
+    counter-reset: paso;
+}
+
+.s-paso {
+    flex: 1;
+    padding-top: var(--s-esp-3);
+    border-top: 3px solid var(--s-borde);
+    color: var(--s-texto-suave);
+}
+
+.s-paso-hecho  { border-top-color: var(--s-cian-600); color: var(--s-texto); }
+.s-paso-actual { border-top-color: var(--s-ambar-400); color: var(--s-texto); }
+
+
+/* --------------------------------------------------------------------------
+   14. ACCESIBILIDAD Y PREFERENCIAS
+   -------------------------------------------------------------------------- */
+
+@media (prefers-reduced-motion: reduce) {
+    .s-btn,
+    .s-control,
+    .s-pestana {
+        transition: none;
+    }
+}
+
+@media (max-width: 600px) {
+    .s-tarjeta { padding: var(--s-esp-4); }
+    .s-kpi-valor { font-size: var(--s-texto-2xl); }
+    .s-pasos { flex-direction: column; gap: var(--s-esp-1); }
+}

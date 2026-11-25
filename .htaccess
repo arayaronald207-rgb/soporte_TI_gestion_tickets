@@ -1,0 +1,16 @@
+# Proteccion HTTP local del proyecto (Apache 2.4 / XAMPP).
+# Los includes PHP por ruta de disco siguen funcionando normalmente.
+Options -Indexes
+
+RewriteEngine On
+
+# Directorios internos: nunca son puntos de entrada de la aplicacion.
+RewriteRule ^(?:respaldos|config|includes|tests)(?:/|$) - [F,L,NC]
+
+# Archivos y directorios ocultos, incluidos metadatos y secretos locales.
+RewriteRule (^|/)\. - [F,L]
+
+# Exportaciones SQL (tambien comprimidas), configuraciones y copias de editor.
+<FilesMatch "(?i)(?:\.(?:sql|dump|bak|backup|old|orig|save|swp|swo|ini|conf|log)(?:\..*)?|~)$">
+    Require all denied
+</FilesMatch>

@@ -1,0 +1,52 @@
+# ==========================================================
+# Soporte TI — archivos que NO deben subirse al repositorio
+# ==========================================================
+
+# --- Credenciales y configuración local ---
+config/config.local.php
+.env
+.env.*
+!.env.example
+*.local.php
+credenciales*.json
+
+# --- Respaldos, volcados de la base e informes de pruebas ---
+# (la carpeta se conserva vacía porque las pruebas escriben en ella)
+respaldos/*
+!respaldos/.gitkeep
+*.sql.gz
+*.sql.zip
+*.dump
+*.bak
+*.backup
+*.old
+*.orig
+
+# --- Logs, caché y temporales ---
+*.log
+*.tmp
+*.temp
+__pycache__/
+*.py[cod]
+.pytest_cache/
+
+# --- Dependencias (por si se agregan en el futuro) ---
+vendor/
+node_modules/
+
+# --- Editores e IDE ---
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# --- Sistema operativo ---
+Thumbs.db
+ehthumbs.db
+desktop.ini
+.DS_Store
+$RECYCLE.BIN/
+
+# --- Archivos temporales de Office (documentos abiertos) ---
+~$*

@@ -1,0 +1,318 @@
+/* ==========================================================================
+   CALIDAD DEL SERVICIO — SLA y encuestas de satisfacción
+   Usa los tokens de tema.css. El color nunca es la única señal: cada
+   insignia incluye texto ("Vencido", "Por vencer"...).
+   ========================================================================== */
+
+/* --------------------------------------------------------------------------
+   1. INSIGNIAS DE SLA
+   -------------------------------------------------------------------------- */
+.s-sla {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 3px 10px;
+    border: 1px solid transparent;
+    border-radius: var(--s-radio-pildora);
+    font-size: var(--s-texto-xs);
+    font-weight: var(--s-peso-semi);
+    line-height: 1.5;
+    white-space: nowrap;
+}
+
+.s-sla::before {
+    content: "";
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: currentColor;
+    flex-shrink: 0;
+}
+
+.s-sla i { font-size: 11px; }
+.s-sla:has(i)::before { display: none; }
+
+.s-sla-a-tiempo   { background: var(--s-info-fondo);   color: var(--s-info-texto); }
+.s-sla-por-vencer { background: var(--s-aviso-fondo);  color: var(--s-aviso-texto); border-color: var(--s-aviso); }
+.s-sla-vencido    { background: var(--s-error-fondo);  color: var(--s-error-texto); border-color: var(--s-error); }
+.s-sla-cumplido   { background: var(--s-exito-fondo);  color: var(--s-exito-texto); }
+.s-sla-incumplido { background: var(--s-error-fondo);  color: var(--s-error-texto); }
+.s-sla-sin-datos  { background: var(--s-superficie-hundida); color: var(--s-texto-suave); }
+
+/* El vencido parpadea suavemente para llamar la atención (sin movimiento si el usuario lo prefiere) */
+@media (prefers-reduced-motion: no-preference) {
+    .s-sla-vencido { animation: s-sla-pulso 2s ease-in-out infinite; }
+}
+
+@keyframes s-sla-pulso {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(220, 38, 38, 0.35); }
+    50%      { box-shadow: 0 0 0 4px rgba(220, 38, 38, 0); }
+}
+
+.s-celda-sla { min-width: 120px; }
+
+.s-sla-detalle {
+    display: block;
+    margin-top: 4px;
+    color: var(--s-texto-suave);
+    font-size: 11px;
+    white-space: nowrap;
+}
+
+.s-sla-resumen {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--s-esp-2);
+    margin: var(--s-esp-2) 0;
+    color: var(--s-texto-suave);
+    font-size: var(--s-texto-sm);
+}
+
+/* --------------------------------------------------------------------------
+   2. BLOQUES ADICIONALES EN LA FICHA DEL TICKET
+   -------------------------------------------------------------------------- */
+.s-ficha-bloque {
+    display: flex;
+    flex-direction: column;
+    gap: var(--s-esp-2);
+    margin-top: var(--s-esp-5);
+    padding-top: var(--s-esp-4);
+    border-top: 1px solid var(--s-borde);
+}
+
+.s-ficha-bloque .s-ficha-datos { margin: 0; }
+
+.s-ficha-nota {
+    margin: 0;
+    color: var(--s-texto-suave);
+    font-size: var(--s-texto-sm);
+}
+
+.s-ficha-bloque form { margin: 0; }
+
+/* La ficha lateral es oscura (grafito): textos y bordes con contraste suficiente */
+.s-ficha .s-ficha-bloque { border-top-color: rgba(255, 255, 255, 0.12); }
+.s-ficha .s-ficha-bloque .s-ficha-nota,
+.s-ficha .s-sla-resumen,
+.s-ficha .s-encuesta-resultado p,
+.s-ficha .s-encuesta-resultado small {
+    padding: 0;
+    border: 0;
+    background: none;
+    color: var(--s-texto-invertido-suave);
+}
+.s-ficha .s-encuesta-resultado strong,
+.s-ficha .s-encuesta-resultado p { color: var(--s-texto-invertido); }
+.s-ficha .s-estrellas .fa-regular { color: var(--s-grafito-600); }
+.s-ficha-bloque .s-aviso { margin: 0; }
+
+/* --------------------------------------------------------------------------
+   3. ESTRELLAS Y RESULTADO DE ENCUESTA
+   -------------------------------------------------------------------------- */
+.s-estrellas {
+    display: inline-flex;
+    gap: 2px;
+    color: var(--s-ambar-400);
+    font-size: 14px;
+}
+
+.s-estrellas .fa-regular { color: var(--s-borde-fuerte); }
+
+.s-encuesta-resultado {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--s-esp-1);
+}
+
+.s-encuesta-resultado .s-estrellas { font-size: 20px; }
+.s-encuesta-resultado p { margin: var(--s-esp-1) 0; color: var(--s-texto); }
+.s-encuesta-resultado small { color: var(--s-texto-suave); }
+
+/* --------------------------------------------------------------------------
+   4. CALIFICACIÓN CON ESTRELLAS (radios accesibles)
+   Los radios van de 5 a 1 en el HTML y se muestran invertidos, para que
+   «:checked ~ label» ilumine la estrella elegida y las anteriores.
+   -------------------------------------------------------------------------- */
+.s-calificacion {
+    display: inline-flex;
+    flex-direction: row-reverse;
+    justify-content: flex-end;
+    gap: var(--s-esp-1);
+}
+
+.s-calificacion input {
+    position: absolute;
+    opacity: 0;
+    width: 1px;
+    height: 1px;
+}
+
+.s-calificacion label {
+    padding: 2px;
+    color: var(--s-borde-fuerte);
+    font-size: 32px;
+    line-height: 1;
+    cursor: pointer;
+    transition: color 0.15s ease, transform 0.15s ease;
+}
+
+.s-calificacion label:hover,
+.s-calificacion label:hover ~ label,
+.s-calificacion input:checked ~ label {
+    color: var(--s-ambar-400);
+}
+
+.s-calificacion label:hover { transform: scale(1.12); }
+
+.s-calificacion input:focus-visible + label {
+    outline: 2px solid var(--s-cian-600);
+    outline-offset: 2px;
+    border-radius: var(--s-radio-sm);
+}
+
+/* --------------------------------------------------------------------------
+   5. PÁGINA «CONSULTAR MI TICKET»
+   -------------------------------------------------------------------------- */
+.s-seguimiento-principal {
+    display: flex;
+    flex-direction: column;
+    gap: var(--s-esp-6);
+    min-width: 0;
+}
+
+.s-progreso {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: var(--s-esp-2);
+    margin: var(--s-esp-4) 0;
+    padding: 0;
+    list-style: none;
+}
+
+.s-progreso-paso {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--s-esp-2);
+    color: var(--s-texto-suave);
+    font-size: var(--s-texto-sm);
+    text-align: center;
+}
+
+/* Línea que une los pasos */
+.s-progreso-paso + .s-progreso-paso::before {
+    content: "";
+    position: absolute;
+    top: 17px;
+    right: 50%;
+    width: 100%;
+    height: 3px;
+    background: var(--s-borde);
+    z-index: 0;
+}
+
+.s-progreso-paso.s-completado + .s-progreso-paso::before,
+.s-progreso-paso.s-completado + .s-progreso-paso.s-actual::before {
+    background: var(--s-estado-resuelta);
+}
+
+.s-progreso-punto {
+    position: relative;
+    z-index: 1;
+    display: grid;
+    place-items: center;
+    width: 36px;
+    height: 36px;
+    border: 2px solid var(--s-borde-fuerte);
+    border-radius: 50%;
+    background: var(--s-superficie);
+    font-weight: var(--s-peso-fuerte);
+}
+
+.s-progreso-paso.s-completado .s-progreso-punto {
+    border-color: var(--s-estado-resuelta);
+    background: var(--s-estado-resuelta);
+    color: var(--s-blanco);
+}
+
+.s-progreso-paso.s-actual { color: var(--s-texto); font-weight: var(--s-peso-semi); }
+
+.s-progreso-paso.s-actual .s-progreso-punto {
+    border-color: var(--s-cian-600);
+    background: var(--s-cian-600);
+    color: var(--s-blanco);
+    box-shadow: 0 0 0 4px var(--s-cian-100);
+}
+
+/* Código de seguimiento en la confirmación del registro */
+.s-registro-codigo strong {
+    letter-spacing: 0.08em;
+    user-select: all;
+}
+
+.s-registro-codigo-aviso { margin-top: var(--s-esp-4); text-align: left; }
+
+/* --------------------------------------------------------------------------
+   6. INDICADORES DE CALIDAD EN EL PANEL
+   -------------------------------------------------------------------------- */
+.s-kpi-sla-vencido       { --kpi-color: var(--s-error);  --kpi-fondo: var(--s-error-fondo); }
+.s-kpi-sla-vencido .s-kpi-icono { color: var(--s-error-texto); }
+.s-kpi-sla-por-vencer    { --kpi-color: var(--s-aviso);  --kpi-fondo: var(--s-aviso-fondo); }
+.s-kpi-sla-por-vencer .s-kpi-icono { color: var(--s-aviso-texto); }
+.s-kpi-sla-a-tiempo      { --kpi-color: var(--s-info);   --kpi-fondo: var(--s-info-fondo); }
+.s-kpi-sla-cumplimiento  { --kpi-color: var(--s-exito);  --kpi-fondo: var(--s-exito-fondo); }
+.s-kpi-sla-cumplimiento .s-kpi-icono { color: var(--s-exito-texto); }
+.s-kpi-satisfaccion      { --kpi-color: var(--s-ambar-500); --kpi-fondo: var(--s-ambar-50); }
+.s-kpi-satisfaccion .s-kpi-icono { color: var(--s-ambar-700); }
+.s-kpis .s-kpi-sla-vencido.s-kpi-atencion::before { background: var(--s-error); }
+
+.s-kpi-satisfaccion .s-estrellas { font-size: 16px; }
+
+.s-distribucion {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.s-distribucion li {
+    display: grid;
+    grid-template-columns: 38px minmax(0, 1fr) 28px;
+    align-items: center;
+    gap: var(--s-esp-2);
+    font-size: var(--s-texto-xs);
+}
+
+.s-distribucion-nota { color: var(--s-texto-suave); white-space: nowrap; }
+.s-distribucion-nota i { color: var(--s-ambar-400); font-size: 10px; }
+
+.s-distribucion-barra {
+    height: 8px;
+    overflow: hidden;
+    border-radius: var(--s-radio-pildora);
+    background: var(--s-superficie-hundida);
+}
+
+.s-distribucion-barra > span {
+    display: block;
+    height: 100%;
+    border-radius: inherit;
+    background: var(--s-ambar-400);
+}
+
+.s-distribucion-cantidad { text-align: right; font-weight: var(--s-peso-semi); }
+
+.s-calidad-tecnicos { margin-top: var(--s-esp-4); }
+.s-calidad-tecnicos table { width: 100%; border-collapse: collapse; }
+.s-calidad-tecnicos th,
+.s-calidad-tecnicos td {
+    padding: var(--s-esp-2) var(--s-esp-3);
+    border-bottom: 1px solid var(--s-borde);
+    text-align: left;
+    font-size: var(--s-texto-sm);
+}

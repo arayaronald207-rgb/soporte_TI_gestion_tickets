@@ -1,0 +1,273 @@
+/* ==========================================================================
+   GESTIÓN DE INCIDENCIAS · CONSULTA DE INCIDENCIAS «SEÑAL» (Etapa 6)
+
+   Página: incidencias.php (requiere sesión).
+   - Reutiliza css/metricas.css (indicadores) y css/tickets.css (filtros,
+     tabla y tarjetas). Esta hoja añade solo lo propio de la consulta.
+   - Sustituye el bloque <style> interno anterior. La ventana emergente
+     conserva su marcado, sus identificadores y su script: aquí solo se
+     define su apariencia y el mecanismo visual .abierto / body.modal-abierto.
+   ========================================================================== */
+
+
+/* --------------------------------------------------------------------------
+   0. FILTROS
+   La consulta usa el layout interno (menú lateral compartido).
+   -------------------------------------------------------------------------- */
+
+/* Filtros en rejilla con anchos mínimos: evita controles estrechos */
+.s-app .s-consulta .s-filtros {
+    display: grid;
+    grid-template-columns: minmax(240px, 2fr) repeat(2, minmax(170px, 1fr)) auto;
+    align-items: end;
+}
+
+.s-consulta .s-filtro,
+.s-consulta .s-filtro-buscar {
+    flex: none;
+}
+
+/* Con el menú lateral (256px) el contenido es más estrecho: 2 columnas antes */
+@media (max-width: 1280px) {
+    .s-app .s-consulta .s-filtros {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .s-consulta .s-filtro-buscar,
+    .s-consulta .s-filtros-botones {
+        grid-column: 1 / -1;
+    }
+
+    .s-consulta .s-filtros-botones .s-btn {
+        flex: 1;
+    }
+}
+
+@media (max-width: 560px) {
+    .s-app .s-consulta .s-filtros {
+        grid-template-columns: minmax(0, 1fr);
+    }
+}
+
+
+/* --------------------------------------------------------------------------
+   1. TABLA DE CONSULTA (11 columnas)
+   -------------------------------------------------------------------------- */
+
+.s-tabla-consulta .s-celda-fecha {
+    white-space: nowrap;
+}
+
+.s-tabla-consulta .s-celda-fecha .s-mono {
+    color: var(--s-texto-suave);
+    font-size: var(--s-texto-xs);
+}
+
+.s-tabla-consulta .btn-ver-descripcion {
+    gap: 6px;
+    white-space: nowrap;
+}
+
+.s-tabla-consulta .s-persona {
+    font-size: var(--s-texto-sm);
+}
+
+/* En tarjetas, el botón de descripción ocupa todo el ancho */
+@media (max-width: 1399.98px) {
+    .s-tabla-consulta .btn-ver-descripcion {
+        width: 100%;
+        min-height: 38px;
+    }
+}
+
+
+/* --------------------------------------------------------------------------
+   2. VENTANA EMERGENTE DE DESCRIPCIÓN
+   -------------------------------------------------------------------------- */
+
+.modal-descripcion {
+    position: fixed;
+    inset: 0;
+    z-index: 100;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: var(--s-esp-4);
+    background: rgba(10, 16, 24, 0.6);
+    backdrop-filter: blur(3px);
+}
+
+.modal-descripcion.abierto {
+    display: flex;
+}
+
+body.modal-abierto {
+    overflow: hidden;
+}
+
+.modal-descripcion-contenido {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    max-width: 600px;
+    max-height: min(88vh, 720px);
+    border: 1px solid var(--s-borde);
+    border-radius: var(--s-radio-xl);
+    background: var(--s-superficie);
+    box-shadow: var(--s-sombra-3);
+    overflow: hidden;
+    font-family: var(--s-fuente);
+}
+
+.modal-descripcion-encabezado {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--s-esp-3);
+    padding: var(--s-esp-4) var(--s-esp-5);
+    background-color: var(--s-grafito-900);
+    background-image: radial-gradient(rgba(14, 165, 183, 0.18) 1px, transparent 1px);
+    background-size: 14px 14px;
+}
+
+.modal-descripcion-encabezado h2 {
+    margin: 0;
+    color: var(--s-blanco);
+    font-size: var(--s-texto-lg);
+    font-weight: 800;
+    letter-spacing: -0.01em;
+}
+
+.modal-descripcion-cerrar {
+    display: grid;
+    place-items: center;
+    width: 38px;
+    height: 38px;
+    flex-shrink: 0;
+    border: 0;
+    border-radius: var(--s-radio-md);
+    background: rgba(255, 255, 255, 0.08);
+    color: var(--s-blanco);
+    font-size: 16px;
+    cursor: pointer;
+    transition: background-color var(--s-transicion);
+}
+
+.modal-descripcion-cerrar:hover {
+    background: rgba(255, 255, 255, 0.16);
+}
+
+.modal-descripcion-cuerpo {
+    padding: var(--s-esp-5);
+    overflow-y: auto;
+}
+
+.modal-descripcion-etiqueta {
+    display: block;
+    margin: 0 0 6px;
+    color: var(--s-cian-700);
+    font-size: 11px;
+    font-weight: var(--s-peso-fuerte);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.modal-descripcion-texto {
+    margin: 0 0 var(--s-esp-4);
+    color: var(--s-texto);
+    font-size: var(--s-texto-sm);
+    line-height: 1.65;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+}
+
+#modalTicketTitulo {
+    font-size: var(--s-texto-md);
+    font-weight: var(--s-peso-fuerte);
+}
+
+#modalDescripcionTexto {
+    margin-bottom: 0;
+    padding: var(--s-esp-4);
+    border: 1px solid var(--s-borde);
+    border-radius: var(--s-radio-md);
+    background: var(--s-fondo);
+}
+
+.modal-descripcion-pie {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: var(--s-esp-2);
+    padding: var(--s-esp-4) var(--s-esp-5);
+    border-top: 1px solid var(--s-borde);
+    background: var(--s-fondo);
+}
+
+.modal-descripcion-boton {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 42px;
+    padding: 0 var(--s-esp-5);
+    border: 1px solid var(--s-borde-fuerte);
+    border-radius: var(--s-radio-md);
+    background: var(--s-superficie);
+    color: var(--s-texto);
+    font-family: var(--s-fuente);
+    font-size: var(--s-texto-sm);
+    font-weight: var(--s-peso-semi);
+    text-decoration: none;
+    cursor: pointer;
+    transition: background-color var(--s-transicion), border-color var(--s-transicion), color var(--s-transicion);
+}
+
+.modal-descripcion-boton:hover {
+    border-color: var(--s-cian-600);
+    color: var(--s-cian-700);
+}
+
+/* Acción principal: ver historial y comentar */
+#modalSeguimiento {
+    border-color: transparent;
+    background: var(--s-cian-600);
+    color: var(--s-blanco);
+}
+
+#modalSeguimiento:hover {
+    background: var(--s-cian-700);
+    color: var(--s-blanco);
+}
+
+.modal-descripcion-cerrar:focus-visible,
+.modal-descripcion-boton:focus-visible {
+    outline: 2px solid var(--s-cian-400);
+    outline-offset: 2px;
+}
+
+@media (max-width: 520px) {
+    .modal-descripcion {
+        align-items: flex-end;
+        padding: 0;
+    }
+
+    .modal-descripcion-contenido {
+        max-height: 92vh;
+        border-radius: var(--s-radio-xl) var(--s-radio-xl) 0 0;
+    }
+
+    .modal-descripcion-pie {
+        flex-direction: column-reverse;
+    }
+
+    .modal-descripcion-boton {
+        width: 100%;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .modal-descripcion-cerrar,
+    .modal-descripcion-boton {
+        transition: none;
+    }
+}

@@ -1,0 +1,543 @@
+/* ==========================================================================
+   GESTIÓN DE INCIDENCIAS · ESTRUCTURA Y NAVEGACIÓN «SEÑAL» (Etapa 1)
+
+   - Requiere css/tema.css (variables --s-*).
+   - Se carga DESPUÉS de los CSS anteriores para sustituir la estructura
+     (menú lateral, contenedor principal y cabecera) del área administrativa.
+   - Todo está limitado a body.s-app: las páginas públicas no cambian.
+   - No modifica tablas, filtros, formularios ni gráficos (etapas posteriores).
+
+   Puntos de corte:
+     ≥ 1024px  menú lateral fijo
+     < 1024px  barra superior + menú desplegable (cajón)
+   Sin JavaScript (no existe la clase .s-js), el menú se muestra apilado
+   sobre el contenido para que la navegación siga disponible.
+   ========================================================================== */
+
+
+/* --------------------------------------------------------------------------
+   1. BASE DE LA APLICACIÓN
+   -------------------------------------------------------------------------- */
+
+body.s-app {
+    font-family: var(--s-fuente);
+    background: var(--s-fondo);
+    color: var(--s-texto);
+    -webkit-font-smoothing: antialiased;
+}
+
+body.s-app.s-menu-bloqueo {
+    overflow: hidden;
+}
+
+.s-app .dashboard-layout {
+    display: flex;
+    align-items: stretch;
+    min-height: 100vh;
+}
+
+.s-app .dashboard-main {
+    flex: 1;
+    min-width: 0;
+    margin: 0;
+    padding: var(--s-esp-8) clamp(var(--s-esp-5), 3vw, var(--s-esp-10)) var(--s-esp-12);
+    background: transparent;
+}
+
+/* Anillo de foco visible en toda el área administrativa */
+.s-app a:focus-visible,
+.s-app button:focus-visible {
+    outline: 2px solid var(--s-cian-400);
+    outline-offset: 2px;
+}
+
+
+/* --------------------------------------------------------------------------
+   2. MENÚ LATERAL
+   -------------------------------------------------------------------------- */
+
+.s-menu {
+    position: sticky;
+    top: 0;
+    display: flex;
+    flex-direction: column;
+    width: var(--s-ancho-menu);
+    flex-shrink: 0;
+    height: 100vh;
+    padding: var(--s-esp-5) var(--s-esp-3) var(--s-esp-3);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    background-color: var(--s-grafito-900);
+    background-image:
+        linear-gradient(180deg, rgba(15, 23, 34, 0) 0%, var(--s-grafito-900) 55%),
+        radial-gradient(rgba(14, 165, 183, 0.14) 1px, transparent 1px);
+    background-size: 100% 100%, 18px 18px;
+    color: var(--s-texto-invertido);
+    border-right: 1px solid var(--s-grafito-800);
+    scrollbar-width: thin;
+    scrollbar-color: var(--s-grafito-700) transparent;
+}
+
+.s-menu-cabecera {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--s-esp-2);
+    padding: 0 var(--s-esp-2);
+}
+
+/* Marca */
+.s-marca {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--s-esp-3);
+    color: var(--s-blanco);
+    text-decoration: none;
+    border-radius: var(--s-radio-md);
+}
+
+/* Logotipo «Ciclo colaborativo» (imagenes/marca/*.svg). El tamaño lo fijan
+   los atributos width/height; aquí solo se evita que se deforme o encoja. */
+.s-marca-logo {
+    display: block;
+    flex-shrink: 0;
+    max-width: none;
+    height: auto;
+}
+
+.s-marca-texto {
+    display: flex;
+    flex-direction: column;
+    line-height: 1.2;
+}
+
+.s-marca-texto strong {
+    font-size: var(--s-texto-lg);
+    font-weight: 800;
+    letter-spacing: -0.02em;
+}
+
+.s-marca-texto small {
+    font-size: var(--s-texto-xs);
+    color: var(--s-texto-invertido-suave);
+}
+
+.s-menu .s-pulso {
+    margin: var(--s-esp-3) 0 var(--s-esp-2) 60px; /* alineado con el texto tras el logotipo de 40px */
+    opacity: 0.9;
+}
+
+/* Grupos y enlaces */
+.s-menu-nav {
+    flex: 1;
+}
+
+.s-menu-nav ul {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.s-menu-grupo {
+    margin: var(--s-esp-5) var(--s-esp-3) var(--s-esp-2);
+    font-size: 11px;
+    font-weight: var(--s-peso-fuerte);
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+    color: #7D8999;
+}
+
+.s-menu-grupo .s-mono {
+    letter-spacing: 0;
+    color: var(--s-ambar-400);
+}
+
+.s-menu-enlace {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: var(--s-esp-3);
+    min-height: 40px;
+    padding: 0 var(--s-esp-3);
+    border-radius: var(--s-radio-md);
+    color: #B8C2CE;
+    font-size: var(--s-texto-sm);
+    font-weight: var(--s-peso-medio);
+    text-decoration: none;
+    transition: background-color var(--s-transicion), color var(--s-transicion);
+}
+
+.s-menu-enlace i {
+    width: 18px;
+    text-align: center;
+    font-size: 15px;
+    color: #7D8999;
+    transition: color var(--s-transicion);
+}
+
+.s-menu-enlace:hover {
+    background: rgba(255, 255, 255, 0.05);
+    color: var(--s-blanco);
+}
+
+.s-menu-enlace:hover i {
+    color: var(--s-texto-invertido);
+}
+
+/* Enlace activo: indicador cian a la izquierda */
+.s-menu-enlace.s-activo {
+    background: rgba(14, 165, 183, 0.14);
+    color: var(--s-blanco);
+    font-weight: var(--s-peso-semi);
+}
+
+.s-menu-enlace.s-activo i {
+    color: var(--s-cian-400);
+}
+
+.s-menu-enlace.s-activo::before {
+    content: "";
+    position: absolute;
+    left: -12px;
+    top: 9px;
+    bottom: 9px;
+    width: 3px;
+    border-radius: 0 3px 3px 0;
+    background: var(--s-cian-400);
+    box-shadow: 0 0 10px rgba(14, 165, 183, 0.6);
+}
+
+/* Tarjeta del usuario */
+.s-menu-usuario {
+    display: flex;
+    align-items: center;
+    gap: var(--s-esp-3);
+    margin-top: var(--s-esp-5);
+    padding: var(--s-esp-3);
+    border: 1px solid var(--s-grafito-700);
+    border-radius: var(--s-radio-lg);
+    background: var(--s-grafito-800);
+}
+
+.s-menu-usuario .s-avatar {
+    width: 36px;
+    height: 36px;
+    font-size: 12px;
+    background: var(--s-grafito-950);
+    box-shadow: inset 0 0 0 1px var(--s-grafito-600);
+}
+
+.s-menu-usuario-datos {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    flex: 1;
+    line-height: 1.3;
+}
+
+.s-menu-usuario-datos strong {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: var(--s-texto-sm);
+    color: var(--s-blanco);
+}
+
+.s-menu-usuario-datos small {
+    font-size: var(--s-texto-xs);
+    font-weight: var(--s-peso-semi);
+}
+
+.s-rol-admin   { color: var(--s-ambar-400); }
+.s-rol-tecnico { color: var(--s-cian-400); }
+
+.s-menu-salir {
+    display: grid;
+    place-items: center;
+    width: 34px;
+    height: 34px;
+    flex-shrink: 0;
+    border-radius: var(--s-radio-md);
+    color: #B8C2CE;
+    text-decoration: none;
+    transition: background-color var(--s-transicion), color var(--s-transicion);
+}
+
+/* El formulario POST conserva la apariencia del anterior enlace de salida. */
+.s-form-salir { display: flex; margin: 0; padding: 0; gap: 0; flex-shrink: 0; }
+button.s-menu-salir, button.s-pub-salir { border: 0; background: transparent; font-family: inherit; cursor: pointer; }
+button.s-menu-salir { padding: 0; font-size: inherit; }
+
+.s-menu-salir:hover {
+    background: rgba(220, 38, 38, 0.16);
+    color: #FCA5A5;
+}
+
+/* Botón «cerrar» del cajón: solo en móvil */
+.s-menu-cerrar {
+    display: none;
+    place-items: center;
+    width: 36px;
+    height: 36px;
+    border: 0;
+    border-radius: var(--s-radio-md);
+    background: rgba(255, 255, 255, 0.06);
+    color: var(--s-texto-invertido);
+    font-size: 16px;
+    cursor: pointer;
+}
+
+
+/* --------------------------------------------------------------------------
+   3. BARRA SUPERIOR MÓVIL Y VELO
+   -------------------------------------------------------------------------- */
+
+.s-barra-movil {
+    display: none;
+}
+
+.s-menu-velo {
+    display: none;
+}
+
+
+/* --------------------------------------------------------------------------
+   4. CABECERA DE CADA PÁGINA
+   (Se reutiliza el marcado existente .dashboard-topbar.)
+   -------------------------------------------------------------------------- */
+
+.s-app .dashboard-topbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: var(--s-esp-4) var(--s-esp-6);
+    margin: 0 0 var(--s-esp-8);
+    padding-bottom: var(--s-esp-6);
+    border-bottom: 1px solid var(--s-borde);
+}
+
+.s-app .dashboard-topbar > div:first-child {
+    min-width: 0;
+}
+
+.s-app .topbar-etiqueta {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--s-esp-2);
+    margin-bottom: var(--s-esp-2);
+    color: var(--s-cian-700);
+    font-size: var(--s-texto-xs);
+    font-weight: var(--s-peso-fuerte);
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+}
+
+/* Punto «en línea» delante del rótulo */
+.s-app .topbar-etiqueta::before {
+    content: "";
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--s-cian-400);
+    box-shadow: 0 0 0 3px var(--s-cian-50);
+}
+
+.s-app .dashboard-topbar h1 {
+    margin: 0 0 6px;
+    color: var(--s-texto);
+    font-size: clamp(1.5rem, 1.2rem + 1vw, 2rem);
+    font-weight: 800;
+    letter-spacing: -0.025em;
+    line-height: var(--s-interlineado-titulo);
+}
+
+.s-app .dashboard-topbar p {
+    margin: 0;
+    color: var(--s-texto-suave);
+    font-size: var(--s-texto-sm);
+}
+
+/* Botones de la cabecera (solo dentro de .dashboard-topbar) */
+.s-app .dashboard-topbar .btn-nuevo,
+.s-app .dashboard-topbar .btn-limpiar {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--s-esp-2);
+    min-height: 42px;
+    padding: 0 var(--s-esp-5);
+    border-radius: var(--s-radio-md);
+    font-size: var(--s-texto-sm);
+    font-weight: var(--s-peso-semi);
+    text-decoration: none;
+    white-space: nowrap;
+    box-shadow: none;
+    transform: none;
+    transition: background-color var(--s-transicion), border-color var(--s-transicion), color var(--s-transicion);
+}
+
+.s-app .dashboard-topbar .btn-nuevo {
+    border: 1px solid transparent;
+    background: var(--s-cian-600);
+    color: var(--s-blanco);
+}
+
+.s-app .dashboard-topbar .btn-nuevo:hover {
+    background: var(--s-cian-700);
+    color: var(--s-blanco);
+    transform: none;
+}
+
+.s-app .dashboard-topbar .btn-limpiar {
+    border: 1px solid var(--s-borde-fuerte);
+    background: var(--s-superficie);
+    color: var(--s-texto);
+}
+
+.s-app .dashboard-topbar .btn-limpiar:hover {
+    border-color: var(--s-cian-600);
+    color: var(--s-cian-700);
+    transform: none;
+}
+
+
+/* --------------------------------------------------------------------------
+   5. TABLETAS Y CELULARES (< 1024px)
+   -------------------------------------------------------------------------- */
+
+@media (max-width: 1023.98px) {
+
+    .s-app .dashboard-layout {
+        display: block;
+    }
+
+    /* Sin JavaScript: menú apilado y siempre visible */
+    .s-menu {
+        position: static;
+        width: 100%;
+        height: auto;
+        border-right: 0;
+    }
+
+    /* Con JavaScript: barra superior + cajón lateral */
+    .s-js .s-barra-movil {
+        position: sticky;
+        top: 0;
+        z-index: 40;
+        display: flex;
+        align-items: center;
+        gap: var(--s-esp-3);
+        height: 60px;
+        padding: 0 var(--s-esp-4);
+        background: var(--s-grafito-900);
+        color: var(--s-blanco);
+        box-shadow: 0 1px 0 var(--s-grafito-800);
+    }
+
+    .s-js .s-barra-movil .s-marca {
+        flex: 1;
+        min-width: 0;
+        font-size: var(--s-texto-md);
+        font-weight: 800;
+        letter-spacing: -0.02em;
+    }
+
+    .s-js .s-barra-movil .s-marca-logo {
+        width: 32px;
+        height: 32px;
+    }
+
+    .s-js .s-barra-movil .s-avatar {
+        background: var(--s-grafito-950);
+        box-shadow: inset 0 0 0 1px var(--s-grafito-600);
+    }
+
+    .s-menu-boton {
+        display: grid;
+        place-items: center;
+        width: 40px;
+        height: 40px;
+        border: 0;
+        border-radius: var(--s-radio-md);
+        background: rgba(255, 255, 255, 0.06);
+        color: var(--s-blanco);
+        font-size: 17px;
+        cursor: pointer;
+    }
+
+    .s-js .s-menu {
+        position: fixed;
+        top: 0;
+        bottom: 0;
+        left: 0;
+        z-index: 60;
+        width: min(86vw, 300px);
+        height: 100%;
+        transform: translateX(-100%);
+        visibility: hidden;
+        transition: transform 220ms cubic-bezier(0.2, 0, 0, 1), visibility 0s linear 220ms;
+        box-shadow: var(--s-sombra-3);
+    }
+
+    .s-js .s-menu.s-abierto {
+        transform: translateX(0);
+        visibility: visible;
+        transition: transform 220ms cubic-bezier(0.2, 0, 0, 1), visibility 0s;
+    }
+
+    .s-js .s-menu-cerrar {
+        display: grid;
+    }
+
+    .s-js .s-menu-velo:not([hidden]) {
+        position: fixed;
+        inset: 0;
+        z-index: 50;
+        display: block;
+        background: rgba(10, 16, 24, 0.55);
+        backdrop-filter: blur(2px);
+    }
+
+    .s-app .dashboard-main {
+        padding: var(--s-esp-6) var(--s-esp-5) var(--s-esp-10);
+    }
+}
+
+@media (max-width: 600px) {
+
+    .s-app .dashboard-main {
+        padding: var(--s-esp-5) var(--s-esp-4) var(--s-esp-8);
+    }
+
+    .s-app .dashboard-topbar {
+        flex-direction: column;
+        align-items: stretch;
+        margin-bottom: var(--s-esp-6);
+        padding-bottom: var(--s-esp-5);
+    }
+
+    .s-app .dashboard-topbar .btn-nuevo,
+    .s-app .dashboard-topbar .btn-limpiar {
+        width: 100%;
+    }
+}
+
+
+/* --------------------------------------------------------------------------
+   6. PREFERENCIAS DE MOVIMIENTO
+   -------------------------------------------------------------------------- */
+
+@media (prefers-reduced-motion: reduce) {
+    .s-js .s-menu,
+    .s-js .s-menu.s-abierto,
+    .s-menu-enlace,
+    .s-menu-salir,
+    .s-app .dashboard-topbar .btn-nuevo,
+    .s-app .dashboard-topbar .btn-limpiar {
+        transition: none;
+    }
+}

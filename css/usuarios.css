@@ -1,0 +1,577 @@
+/* ==========================================================================
+   GESTIÓN DE INCIDENCIAS · GESTIÓN DE USUARIOS «SEÑAL»
+
+   Página: admin/usuarios.php (solo administradores).
+   - Requiere css/tema.css (.s-control, .s-btn, .s-aviso, .s-avatar) y
+     css/navegacion.css. Se carga al final.
+   - Sustituye el bloque <style> interno anterior. Anula las reglas
+     globales antiguas de form (estilos.css) dentro de los componentes nuevos.
+
+   Distribución:
+     > 1100px  formulario (fijo) + listado en dos columnas
+     ≤ 1100px  una columna: formulario y después listado
+     ≤ 700px   la tabla se muestra como tarjetas
+   ========================================================================== */
+
+
+/* --------------------------------------------------------------------------
+   1. AVISOS Y RESUMEN
+   -------------------------------------------------------------------------- */
+
+.s-usuarios-aviso {
+    margin-bottom: var(--s-esp-4);
+}
+
+.s-usuarios-aviso i {
+    margin-top: 3px;
+}
+
+.s-usuarios-resumen {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: var(--s-esp-4);
+    margin-bottom: var(--s-esp-6);
+}
+
+.s-usuarios-dato {
+    display: flex;
+    align-items: center;
+    gap: var(--s-esp-3);
+    padding: var(--s-esp-4);
+    border: 1px solid var(--s-borde);
+    border-radius: var(--s-radio-lg);
+    background: var(--s-superficie);
+    box-shadow: var(--s-sombra-1);
+}
+
+.s-usuarios-dato > span:last-child {
+    display: flex;
+    flex-direction: column;
+    line-height: 1.2;
+}
+
+.s-usuarios-dato strong {
+    color: var(--s-texto);
+    font-size: var(--s-texto-2xl);
+    font-weight: var(--s-peso-fuerte);
+}
+
+.s-usuarios-dato small {
+    color: var(--s-texto-suave);
+    font-size: var(--s-texto-xs);
+    font-weight: var(--s-peso-semi);
+}
+
+.s-usuarios-dato-icono {
+    display: grid;
+    place-items: center;
+    width: 40px;
+    height: 40px;
+    flex-shrink: 0;
+    border-radius: var(--s-radio-md);
+    background: var(--s-cian-50);
+    color: var(--s-cian-700);
+    font-size: 16px;
+}
+
+.s-dato-admin   { background: var(--s-ambar-50); color: var(--s-ambar-700); }
+.s-dato-tecnico { background: var(--s-cian-50);  color: var(--s-cian-700); }
+
+/* Dato principal sobre grafito */
+.s-usuarios-dato-destacado {
+    border-color: var(--s-grafito-800);
+    background-color: var(--s-grafito-900);
+    background-image: radial-gradient(rgba(14, 165, 183, 0.18) 1px, transparent 1px);
+    background-size: 16px 16px;
+}
+
+.s-usuarios-dato-destacado strong { color: var(--s-cian-400); }
+.s-usuarios-dato-destacado small  { color: var(--s-texto-invertido-suave); }
+
+.s-usuarios-dato-destacado .s-usuarios-dato-icono {
+    background: rgba(14, 165, 183, 0.16);
+    color: var(--s-cian-400);
+}
+
+
+/* --------------------------------------------------------------------------
+   2. REJILLA Y TARJETAS
+   -------------------------------------------------------------------------- */
+
+.s-usuarios-rejilla {
+    display: grid;
+    grid-template-columns: minmax(300px, 380px) minmax(0, 1fr);
+    align-items: start;
+    gap: var(--s-esp-5);
+}
+
+.s-usuarios-tarjeta {
+    min-width: 0;
+    padding: var(--s-esp-6);
+    border: 1px solid var(--s-borde);
+    border-radius: var(--s-radio-lg);
+    background: var(--s-superficie);
+    box-shadow: var(--s-sombra-1);
+}
+
+.s-usuarios-formulario {
+    position: sticky;
+    top: var(--s-esp-6);
+}
+
+/* En edición: borde cian para que el cambio de modo sea evidente */
+.s-usuarios-formulario.s-en-edicion {
+    border-color: var(--s-cian-600);
+    box-shadow: 0 0 0 3px var(--s-cian-50), var(--s-sombra-1);
+}
+
+.s-usuarios-cabecera {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--s-esp-3);
+    margin-bottom: var(--s-esp-5);
+}
+
+.s-usuarios-cabecera > div {
+    flex: 1;
+    min-width: 0;
+}
+
+.s-usuarios-icono {
+    display: grid;
+    place-items: center;
+    width: 40px;
+    height: 40px;
+    flex-shrink: 0;
+    border-radius: var(--s-radio-md);
+    background: var(--s-grafito-900);
+    color: var(--s-cian-400);
+    font-size: 16px;
+}
+
+.s-usuarios-cabecera h2 {
+    margin: 0 0 2px;
+    color: var(--s-texto);
+    font-size: var(--s-texto-lg);
+    font-weight: 800;
+    letter-spacing: -0.01em;
+}
+
+.s-usuarios-cabecera p {
+    margin: 0;
+    color: var(--s-texto-suave);
+    font-size: var(--s-texto-sm);
+    line-height: 1.5;
+}
+
+.s-usuarios-total {
+    align-self: center;
+    flex-shrink: 0;
+    padding: 3px 10px;
+    border-radius: var(--s-radio-pildora);
+    background: var(--s-superficie-hundida);
+    color: var(--s-texto-suave);
+    font-family: var(--s-fuente-mono);
+    font-size: var(--s-texto-xs);
+    font-weight: var(--s-peso-semi);
+}
+
+.s-usuarios-modo {
+    display: flex;
+    align-items: center;
+    gap: var(--s-esp-2);
+    margin: calc(-1 * var(--s-esp-2)) 0 var(--s-esp-4);
+    padding: var(--s-esp-2) var(--s-esp-3);
+    border-radius: var(--s-radio-md);
+    background: var(--s-cian-50);
+    color: var(--s-cian-700);
+    font-size: var(--s-texto-xs);
+    font-weight: var(--s-peso-semi);
+}
+
+
+/* --------------------------------------------------------------------------
+   3. FORMULARIO
+   -------------------------------------------------------------------------- */
+
+.s-app .s-usuarios-form {
+    display: flex;
+    flex-direction: column;
+    gap: var(--s-esp-4);
+    margin: 0;
+}
+
+.s-app .s-usuarios-form .s-control {
+    min-height: 44px;
+    padding: 10px 12px;
+    font-size: var(--s-texto-md);
+}
+
+.s-app .s-usuarios-form select.s-control {
+    padding-right: 36px;
+    appearance: none;
+    -webkit-appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 8' fill='none'%3E%3Cpath d='M1 1.5l5 5 5-5' stroke='%235B6675' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 13px center;
+    background-size: 11px 8px;
+    cursor: pointer;
+}
+
+.s-app .s-usuarios-form .s-control:user-invalid {
+    border-color: var(--s-error);
+}
+
+.s-obligatorio {
+    color: var(--s-error-texto);
+    font-weight: var(--s-peso-fuerte);
+}
+
+.s-usuarios-control-icono {
+    position: relative;
+}
+
+.s-usuarios-control-icono > i {
+    position: absolute;
+    top: 50%;
+    left: 13px;
+    transform: translateY(-50%);
+    color: var(--s-texto-tenue);
+    font-size: 13px;
+    pointer-events: none;
+}
+
+.s-app .s-usuarios-control-icono .s-control {
+    padding-left: 36px;
+}
+
+/* Contraseña y confirmación lado a lado cuando hay espacio */
+.s-usuarios-claves {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--s-esp-3);
+}
+
+.s-usuarios-ayuda-clave {
+    display: flex;
+    align-items: flex-start;
+    gap: 6px;
+    margin-top: calc(-1 * var(--s-esp-2));
+    line-height: 1.5;
+}
+
+.s-usuarios-ayuda-clave i {
+    margin-top: 2px;
+    color: var(--s-cian-600);
+}
+
+.s-usuarios-botones {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--s-esp-2);
+    padding-top: var(--s-esp-4);
+    border-top: 1px solid var(--s-borde);
+}
+
+.s-usuarios-botones .s-btn {
+    flex: 1 1 auto;
+    min-height: 44px;
+}
+
+.s-usuarios-botones .s-btn-primario {
+    flex-grow: 2;
+}
+
+
+/* --------------------------------------------------------------------------
+   4. TABLA DE USUARIOS
+   -------------------------------------------------------------------------- */
+
+.s-usuarios-tabla-contenedor {
+    border: 1px solid var(--s-borde);
+    border-radius: var(--s-radio-md);
+    overflow-x: auto;
+}
+
+.s-usuarios-tabla {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: var(--s-texto-sm);
+}
+
+.s-usuarios-tabla thead th {
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--s-borde);
+    background: var(--s-fondo);
+    color: var(--s-texto-suave);
+    font-size: 11px;
+    font-weight: var(--s-peso-fuerte);
+    letter-spacing: 0.06em;
+    text-align: left;
+    text-transform: uppercase;
+    white-space: nowrap;
+}
+
+.s-usuarios-tabla thead th:last-child {
+    text-align: right;
+}
+
+.s-usuarios-tabla tbody td {
+    padding: 12px 14px;
+    border-bottom: 1px solid var(--s-superficie-hundida);
+    vertical-align: middle;
+}
+
+.s-usuarios-tabla tbody tr:last-child td {
+    border-bottom: 0;
+}
+
+.s-usuarios-tabla tbody tr {
+    transition: background-color var(--s-transicion);
+}
+
+.s-usuarios-tabla tbody tr:hover {
+    background: #FAFBFC;
+}
+
+.s-usuarios-tabla tbody tr.s-fila-editando {
+    background: var(--s-cian-50);
+    box-shadow: inset 3px 0 0 var(--s-cian-600);
+}
+
+.s-celda-id-usuario .s-mono {
+    color: var(--s-texto-suave);
+    font-size: var(--s-texto-xs);
+}
+
+.s-usuarios-persona {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px var(--s-esp-2);
+    min-width: 0;
+}
+
+.s-usuarios-persona .s-avatar {
+    width: 32px;
+    height: 32px;
+    font-size: 11px;
+}
+
+.s-avatar-admin {
+    background: var(--s-ambar-700);
+    color: var(--s-blanco);
+}
+
+.s-usuarios-nombre {
+    color: var(--s-texto);
+    font-weight: var(--s-peso-semi);
+    overflow-wrap: anywhere;
+}
+
+.s-usuarios-propia,
+.s-usuarios-editando {
+    padding: 1px 8px;
+    border-radius: var(--s-radio-pildora);
+    font-size: 10px;
+    font-weight: var(--s-peso-fuerte);
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+}
+
+.s-usuarios-propia {
+    background: var(--s-grafito-900);
+    color: var(--s-blanco);
+}
+
+.s-usuarios-editando {
+    background: var(--s-cian-600);
+    color: var(--s-blanco);
+}
+
+/* Insignias de rol */
+.s-rol {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 3px 10px;
+    border-radius: var(--s-radio-pildora);
+    font-size: var(--s-texto-xs);
+    font-weight: var(--s-peso-semi);
+    white-space: nowrap;
+}
+
+.s-rol i {
+    font-size: 11px;
+}
+
+.s-rol-insignia-admin {
+    background: var(--s-ambar-50);
+    color: var(--s-ambar-700);
+}
+
+.s-rol-insignia-tecnico {
+    background: var(--s-cian-50);
+    color: var(--s-cian-700);
+}
+
+/* Acciones */
+.s-usuarios-acciones {
+    display: flex;
+    justify-content: flex-end;
+    gap: 6px;
+}
+
+.s-app .s-usuarios-form-eliminar {
+    display: inline-flex;
+    margin: 0;
+}
+
+.s-usuarios-acciones .s-btn-riesgo:disabled {
+    border-color: var(--s-borde);
+    background: var(--s-superficie-hundida);
+    color: var(--s-texto-suave);
+    opacity: 1;
+}
+
+.s-usuarios-nota {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--s-esp-2);
+    margin: var(--s-esp-4) 0 0;
+    color: var(--s-texto-suave);
+    font-size: var(--s-texto-xs);
+    line-height: 1.55;
+}
+
+.s-usuarios-nota i {
+    margin-top: 2px;
+    color: var(--s-cian-600);
+}
+
+
+/* --------------------------------------------------------------------------
+   5. ADAPTACIÓN A PANTALLAS
+   -------------------------------------------------------------------------- */
+
+@media (max-width: 1100px) {
+    .s-usuarios-rejilla {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .s-usuarios-formulario {
+        position: static;
+    }
+}
+
+@media (max-width: 700px) {
+    .s-usuarios-resumen {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: var(--s-esp-2);
+    }
+
+    .s-usuarios-dato {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: var(--s-esp-2);
+        padding: var(--s-esp-3);
+    }
+
+    .s-usuarios-dato-icono {
+        width: 32px;
+        height: 32px;
+        font-size: 13px;
+    }
+
+    .s-usuarios-dato strong {
+        font-size: var(--s-texto-xl);
+    }
+
+    .s-usuarios-tarjeta {
+        padding: var(--s-esp-4);
+    }
+
+    .s-usuarios-claves {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    /* Tabla como tarjetas */
+    .s-usuarios-tabla-contenedor {
+        border: 0;
+        overflow: visible;
+    }
+
+    .s-usuarios-tabla,
+    .s-usuarios-tabla tbody,
+    .s-usuarios-tabla tr,
+    .s-usuarios-tabla td {
+        display: block;
+    }
+
+    .s-usuarios-tabla thead {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        overflow: hidden;
+        clip: rect(0, 0, 0, 0);
+    }
+
+    .s-usuarios-tabla tbody {
+        display: flex;
+        flex-direction: column;
+        gap: var(--s-esp-2);
+    }
+
+    .s-usuarios-tabla tbody tr {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        grid-template-areas:
+            "usuario id"
+            "rol rol"
+            "acciones acciones";
+        gap: var(--s-esp-2);
+        padding: var(--s-esp-3);
+        border: 1px solid var(--s-borde);
+        border-radius: var(--s-radio-md);
+    }
+
+    .s-usuarios-tabla tbody td {
+        padding: 0;
+        border: 0;
+    }
+
+    .s-celda-id-usuario     { grid-area: id; align-self: center; }
+    .s-celda-usuario        { grid-area: usuario; }
+    .s-celda-rol            { grid-area: rol; padding-left: 40px !important; }
+    .s-celda-acciones-usuario {
+        grid-area: acciones;
+        padding-top: var(--s-esp-2) !important;
+        border-top: 1px solid var(--s-superficie-hundida) !important;
+    }
+
+    .s-usuarios-acciones {
+        justify-content: stretch;
+    }
+
+    .s-usuarios-acciones > * {
+        flex: 1;
+    }
+
+    .s-usuarios-acciones .s-btn,
+    .s-usuarios-form-eliminar .s-btn {
+        width: 100%;
+        min-height: 38px;
+    }
+}
+
+@media (max-width: 420px) {
+    .s-usuarios-dato small {
+        font-size: 10px;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .s-usuarios-tabla tbody tr {
+        transition: none;
+    }
+}

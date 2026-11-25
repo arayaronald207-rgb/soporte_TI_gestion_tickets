@@ -1,0 +1,412 @@
+<?php
+/*
+ * Consulta pública del ticket y encuesta de satisfacción del solicitante.
+ *
+ * El solicitante no tiene cuenta: se identifica con el número de ticket y el
+ * código de seguimiento que recibió al registrarlo. La autorización se guarda
+ * en su sesión junto con el hash vigente; si el personal genera un código
+ * nuevo, la autorización anterior deja de ser válida.
+ */
+require_once __DIR__ . '/config/sesion.php';
+require_once __DIR__ . '/config/parametros.php';
+require_once __DIR__ . '/config/conexion.php';
+require_once __DIR__ . '/config/autorizacion.php';
+require_once __DIR__ . '/config/historial.php';
+require_once __DIR__ . '/config/encuestas.php';
+
+$usuario_actual = usuarioAutenticado($conn, 'login.php', false);
+
+if (empty($_SESSION['csrf_token'])) {
+    $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+}
+
+// Límite básico contra intentos repetidos de adivinar códigos (por sesión).
+const SEGUIMIENTO_MAX_INTENTOS = 5;
+const SEGUIMIENTO_BLOQUEO_SEGUNDOS = 600;
+
+$error = '';
+$numero_ingresado = '';
+$autorizados = is_array($_SESSION['seguimiento_tickets'] ?? null) ? $_SESSION['seguimiento_tickets'] : [];
+
+// Devuelve el ticket solo si la sesión lo autorizó con el código vigente.
+$ticketAutorizado = static function (int $id) use ($conn, $autorizados): ?array {
+    if (!isset($autorizados[$id])) {
+        return null;
+    }
+    $stmt = $conn->prepare('SELECT id, titulo, categoria, prioridad, estado, laboratorio, equipo, tecnico_id,
+        archivado, UNIX_TIMESTAMP(fecha_registro) AS registro_epoch, fecha_resolucion, codigo_seguimiento_hash
+        FROM incidencias WHERE id = ?');
+    $stmt->bind_param('i', $id);
+    $stmt->execute();
+    $ticket = $stmt->get_result()->fetch_assoc();
+    $stmt->close();
+    if (!$ticket || $ticket['codigo_seguimiento_hash'] === null ||
+        !hash_equals($ticket['codigo_seguimiento_hash'], (string) $autorizados[$id])) {
+        return null;
+    }
+    return $ticket;
+};
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    validarParametrosTexto($_POST, ['accion', 'numero', 'codigo', 'ticket', 'calificacion', 'comentario']);
+    $token = $_POST['csrf_token'] ?? '';
+    $accion = $_POST['accion'] ?? '';
+
+    if (!is_string($token) || !hash_equals($_SESSION['csrf_token'], $token)) {
+        http_response_code(403);
+        $error = 'La sesión del formulario no es válida. Actualiza la página.';
+
+    } elseif ($accion === 'consultar') {
+        $numero_ingresado = trim($_POST['numero'] ?? '');
+        $codigo = trim($_POST['codigo'] ?? '');
+        $intentos = $_SESSION['seguimiento_intentos'] ?? ['cantidad' => 0, 'desde' => time()];
+        if (time() - $intentos['desde'] > SEGUIMIENTO_BLOQUEO_SEGUNDOS) {
+            $intentos = ['cantidad' => 0, 'desde' => time()];
+        }
+        $numero = (int) preg_replace('/\D/', '', $numero_ingresado);
+
+        if ($intentos['cantidad'] >= SEGUIMIENTO_MAX_INTENTOS) {
+            http_response_code(429);
+            $error = 'Demasiados intentos fallidos. Espera unos minutos antes de volver a intentarlo.';
+        } elseif ($numero <= 0 || $codigo === '' || mb_strlen($codigo, 'UTF-8') > 30) {
+            http_response_code(422);
+            $error = 'Escribe el número de ticket y el código de seguimiento.';
+        } else {
+            $stmt = $conn->prepare('SELECT codigo_seguimiento_hash FROM incidencias WHERE id = ?');
+            $stmt->bind_param('i', $numero);
+            $stmt->execute();
+            $fila = $stmt->get_result()->fetch_assoc();
+            $stmt->close();
+            $hash = hashCodigoSeguimiento($codigo);
+            if ($fila && $fila['codigo_seguimiento_hash'] !== null && hash_equals($fila['codigo_seguimiento_hash'], $hash)) {
+                unset($_SESSION['seguimiento_intentos']);
+                $autorizados[$numero] = $hash;
+                // Conservar solo los 10 tickets consultados más recientemente.
+                $_SESSION['seguimiento_tickets'] = array_slice($autorizados, -10, null, true);
+                header('Location: seguimiento.php?ticket=' . $numero);
+                exit;
+            }
+            $intentos['cantidad']++;
+            $_SESSION['seguimiento_intentos'] = $intentos;
+            http_response_code(422);
+            // Mismo mensaje para ticket inexistente y código incorrecto.
+            $error = 'El número de ticket o el código de seguimiento no coinciden.';
+        }
+
+    } elseif ($accion === 'encuesta') {
+        $id = filter_var($_POST['ticket'] ?? null, FILTER_VALIDATE_INT);
+        $calificacion = filter_var($_POST['calificacion'] ?? null, FILTER_VALIDATE_INT,
+            ['options' => ['min_range' => 1, 'max_range' => 5]]);
+        $comentario = trim($_POST['comentario'] ?? '');
+        if (!$id || $ticketAutorizado($id) === null) {
+            http_response_code(403);
+            $error = 'Vuelve a consultar tu ticket con el número y el código de seguimiento.';
+        } elseif ($calificacion === false) {
+            http_response_code(422);
+            $error = 'Selecciona una calificación de 1 a 5 estrellas.';
+            $_GET['ticket'] = (string) $id;
+        } elseif (mb_strlen($comentario, 'UTF-8') > ENCUESTA_COMENTARIO_MAX) {
+            http_response_code(422);
+            $error = 'El comentario no puede superar los ' . ENCUESTA_COMENTARIO_MAX . ' caracteres.';
+            $_GET['ticket'] = (string) $id;
+        } else {
+            try {
+                $conn->begin_transaction();
+                // Bloquear el ticket: el estado podría cambiar mientras se responde.
+                $stmt = $conn->prepare('SELECT estado FROM incidencias WHERE id = ? FOR UPDATE');
+                $stmt->bind_param('i', $id);
+                $stmt->execute();
+                $estado_actual = $stmt->get_result()->fetch_assoc()['estado'] ?? null;
+                $stmt->close();
+                if ($estado_actual !== 'Resuelta') {
+                    $conn->rollback();
+                    http_response_code(409);
+                    $error = 'La encuesta solo está disponible cuando el ticket está resuelto.';
+                } elseif (encuestaDeIncidencia($conn, $id) !== null) {
+                    $conn->rollback();
+                    http_response_code(409);
+                    $error = 'Esta encuesta ya fue respondida. ¡Gracias!';
+                } else {
+                    $comentario_guardado = $comentario === '' ? null : $comentario;
+                    $stmt = $conn->prepare('INSERT INTO encuestas_satisfaccion (incidencia_id, calificacion, comentario)
+                        VALUES (?, ?, ?)');
+                    $stmt->bind_param('iis', $id, $calificacion, $comentario_guardado);
+                    $stmt->execute();
+                    $stmt->close();
+                    $conn->commit();
+                    header('Location: seguimiento.php?ticket=' . $id . '&encuesta=1');
+                    exit;
+                }
+            } catch (mysqli_sql_exception $e) {
+                $conn->rollback();
+                if ((int) $e->getCode() === 1062) {
+                    $error = 'Esta encuesta ya fue respondida. ¡Gracias!';
+                } else {
+                    error_log('Error al guardar encuesta: ' . $e->getMessage());
+                    http_response_code(500);
+                    $error = 'No se pudo guardar la encuesta. Inténtalo de nuevo.';
+                }
+            }
+            $_GET['ticket'] = (string) $id;
+        }
+    } else {
+        http_response_code(422);
+        $error = 'Operación no válida.';
+    }
+}
+
+validarParametrosTexto($_GET, ['ticket', 'encuesta']);
+$ticket = null;
+$encuesta = null;
+$id_consultado = filter_var($_GET['ticket'] ?? null, FILTER_VALIDATE_INT);
+if ($id_consultado && $id_consultado > 0) {
+    $ticket = $ticketAutorizado($id_consultado);
+    if ($ticket === null && $error === '') {
+        $error = 'Para ver un ticket, escribe su número y el código de seguimiento.';
+    }
+}
+if ($ticket !== null) {
+    $encuesta = encuestaDeIncidencia($conn, (int) $ticket['id']);
+}
+
+function escapar($valor): string
+{
+    return htmlspecialchars((string) $valor, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+}
+
+require_once __DIR__ . '/includes/recursos.php';
+$categorias = ['hardware' => 'Hardware', 'software' => 'Software', 'red' => 'Red'];
+?>
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Consultar mi ticket | Soporte TI</title>
+    <?= faviconSenal() ?>
+    <link rel="stylesheet" href="<?= recursoVersionado('css/tema.css') ?>">
+    <link rel="stylesheet" href="<?= recursoVersionado('css/estilos.css') ?>">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css">
+    <link rel="stylesheet" href="<?= recursoVersionado('css/navegacion.css') ?>">
+    <link rel="stylesheet" href="<?= recursoVersionado('css/formularios.css') ?>">
+    <link rel="stylesheet" href="<?= recursoVersionado('css/publico.css') ?>">
+    <link rel="stylesheet" href="<?= recursoVersionado('css/calidad.css') ?>">
+    <script src="<?= recursoVersionado('js/formularios.js') ?>" defer></script>
+</head>
+<body class="s-app s-publico">
+<?php
+$pub_activa = 'seguimiento';
+require __DIR__ . '/includes/cabecera_publica.php';
+?>
+<main id="contenido" class="s-pub-contenedor s-pub-pagina">
+
+    <header class="dashboard-topbar">
+        <div>
+            <span class="topbar-etiqueta">Centro de soporte</span>
+            <h1>Consultar mi ticket</h1>
+            <p>Revisa el avance de tu incidencia y califica la atención cuando esté resuelta.</p>
+        </div>
+        <?php if ($ticket !== null): ?>
+            <a href="seguimiento.php" class="btn-limpiar">
+                <i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i>
+                Consultar otro ticket
+            </a>
+        <?php endif; ?>
+    </header>
+
+    <?php if ($error !== ''): ?>
+        <div class="s-aviso s-aviso-error" role="alert">
+            <i class="fa-solid fa-circle-exclamation" aria-hidden="true"></i>
+            <div><?= escapar($error) ?></div>
+        </div>
+    <?php endif; ?>
+
+    <?php if ($ticket === null): ?>
+
+        <!-- FORMULARIO DE CONSULTA -->
+        <div class="s-registro-rejilla">
+            <section class="s-form-tarjeta" aria-labelledby="titulo-consulta">
+                <div class="s-form-cabecera">
+                    <span class="s-form-icono"><i class="fa-solid fa-key" aria-hidden="true"></i></span>
+                    <div>
+                        <h2 id="titulo-consulta">Datos de tu ticket</h2>
+                        <p>Los recibiste en pantalla al registrar la incidencia.</p>
+                    </div>
+                </div>
+                <form method="POST" class="s-formulario">
+                    <input type="hidden" name="csrf_token" value="<?= escapar($_SESSION['csrf_token']) ?>">
+                    <input type="hidden" name="accion" value="consultar">
+                    <div class="s-form-rejilla">
+                        <div class="s-campo">
+                            <label for="numero" class="s-etiqueta">Número de ticket <span class="s-obligatorio" aria-hidden="true">*</span></label>
+                            <input type="text" id="numero" name="numero" maxlength="12" class="s-control s-mono"
+                                   inputmode="numeric" value="<?= escapar($numero_ingresado) ?>" placeholder="Ejemplo: #0012" required>
+                        </div>
+                        <div class="s-campo">
+                            <label for="codigo" class="s-etiqueta">Código de seguimiento <span class="s-obligatorio" aria-hidden="true">*</span></label>
+                            <input type="text" id="codigo" name="codigo" maxlength="30" class="s-control s-mono"
+                                   autocomplete="off" autocapitalize="characters" spellcheck="false"
+                                   placeholder="Ejemplo: 3FA2-9C1B-07DE" required>
+                        </div>
+                    </div>
+                    <div class="s-form-acciones">
+                        <button type="submit" class="s-btn s-btn-primario">
+                            <i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i>
+                            Consultar ticket
+                        </button>
+                    </div>
+                </form>
+            </section>
+
+            <aside class="s-registro-guia" aria-labelledby="titulo-guia-seguimiento">
+                <h2 id="titulo-guia-seguimiento" class="s-registro-guia-titulo">
+                    <i class="fa-solid fa-circle-info" aria-hidden="true"></i>
+                    ¿Perdiste tu código?
+                </h2>
+                <p>Comunícate con el centro de informática indicando tu número de ticket. El personal de soporte puede generarte un código nuevo.</p>
+                <p>¿Aún no reportas tu problema? <a href="registrar.php">Registra una incidencia</a>.</p>
+            </aside>
+        </div>
+
+    <?php else: ?>
+
+        <?php
+        $numero_ticket = '#' . str_pad((string) (int) $ticket['id'], 4, '0', STR_PAD_LEFT);
+        $pasos = ['Pendiente' => 1, 'En proceso' => 2, 'Resuelta' => 3];
+        $paso_actual = $pasos[$ticket['estado']] ?? 1;
+        $tono_estado = match ($ticket['estado']) {
+            'Resuelta' => 'resuelta', 'En proceso' => 'proceso', default => 'pendiente'
+        };
+        ?>
+
+        <?php if (isset($_GET['encuesta']) && $encuesta !== null): ?>
+            <div class="s-aviso s-aviso-exito" role="status">
+                <i class="fa-solid fa-circle-check" aria-hidden="true"></i>
+                <div><strong>¡Gracias por tu opinión!</strong> Tu calificación ayuda a mejorar el servicio de soporte.</div>
+            </div>
+        <?php endif; ?>
+
+        <div class="s-registro-rejilla">
+            <div class="s-seguimiento-principal">
+
+                <!-- ESTADO DEL TICKET -->
+                <section class="s-form-tarjeta" aria-labelledby="titulo-estado">
+                    <div class="s-form-cabecera">
+                        <span class="s-form-icono"><i class="fa-solid fa-route" aria-hidden="true"></i></span>
+                        <div>
+                            <h2 id="titulo-estado">Ticket <span class="s-mono"><?= $numero_ticket ?></span></h2>
+                            <p><?= escapar($ticket['titulo'] ?? 'Sin título') ?></p>
+                        </div>
+                    </div>
+
+                    <ol class="s-progreso" aria-label="Avance del ticket">
+                        <?php foreach (['Pendiente' => 'Registrado', 'En proceso' => 'En atención', 'Resuelta' => 'Resuelto'] as $estado_paso => $texto_paso): ?>
+                            <?php $n = $pasos[$estado_paso]; ?>
+                            <li class="s-progreso-paso<?= $n < $paso_actual ? ' s-completado' : '' ?><?= $n === $paso_actual ? ' s-actual' : '' ?>"
+                                <?= $n === $paso_actual ? 'aria-current="step"' : '' ?>>
+                                <span class="s-progreso-punto" aria-hidden="true"><?= $n < $paso_actual || ($n === 3 && $paso_actual === 3) ? '<i class="fa-solid fa-check"></i>' : $n ?></span>
+                                <span><?= $texto_paso ?></span>
+                            </li>
+                        <?php endforeach; ?>
+                    </ol>
+
+                    <?php if ((int) $ticket['archivado'] === 1): ?>
+                        <div class="s-aviso s-aviso-info">
+                            <i class="fa-solid fa-box-archive" aria-hidden="true"></i>
+                            <div>El centro de soporte archivó este ticket. Su información se conserva.</div>
+                        </div>
+                    <?php endif; ?>
+                </section>
+
+                <!-- ENCUESTA DE SATISFACCIÓN -->
+                <section class="s-form-tarjeta s-encuesta" aria-labelledby="titulo-encuesta">
+                    <div class="s-form-cabecera">
+                        <span class="s-form-icono"><i class="fa-solid fa-star" aria-hidden="true"></i></span>
+                        <div>
+                            <h2 id="titulo-encuesta">Encuesta de satisfacción</h2>
+                            <p>¿Cómo calificas la atención que recibiste?</p>
+                        </div>
+                    </div>
+
+                    <?php if ($encuesta !== null): ?>
+                        <div class="s-encuesta-resultado">
+                            <?= estrellasHtml((int) $encuesta['calificacion']) ?>
+                            <strong><?= (int) $encuesta['calificacion'] ?>/5 · <?= escapar(ENCUESTA_ETIQUETAS[(int) $encuesta['calificacion']]) ?></strong>
+                            <?php if ($encuesta['comentario'] !== null): ?>
+                                <p class="historial-texto">«<?= escapar($encuesta['comentario']) ?>»</p>
+                            <?php endif; ?>
+                            <small>Respondida el <?= escapar(fechaHistorialLocal($encuesta['fecha'])) ?> (Costa Rica). ¡Gracias!</small>
+                        </div>
+                    <?php elseif ($ticket['estado'] !== 'Resuelta'): ?>
+                        <div class="s-aviso s-aviso-info">
+                            <i class="fa-solid fa-hourglass-half" aria-hidden="true"></i>
+                            <div>La encuesta estará disponible cuando el personal de soporte marque tu ticket como resuelto.</div>
+                        </div>
+                    <?php else: ?>
+                        <form method="POST" class="s-formulario">
+                            <input type="hidden" name="csrf_token" value="<?= escapar($_SESSION['csrf_token']) ?>">
+                            <input type="hidden" name="accion" value="encuesta">
+                            <input type="hidden" name="ticket" value="<?= (int) $ticket['id'] ?>">
+
+                            <fieldset class="s-form-seccion">
+                                <legend>Calificación <span class="s-obligatorio" aria-hidden="true">*</span></legend>
+                                <div class="s-calificacion">
+                                    <?php for ($nota = 5; $nota >= 1; $nota--): ?>
+                                        <input type="radio" id="nota-<?= $nota ?>" name="calificacion" value="<?= $nota ?>" required>
+                                        <label for="nota-<?= $nota ?>" title="<?= escapar(ENCUESTA_ETIQUETAS[$nota]) ?>">
+                                            <i class="fa-solid fa-star" aria-hidden="true"></i>
+                                            <span class="s-solo-lector"><?= $nota ?> estrellas: <?= escapar(ENCUESTA_ETIQUETAS[$nota]) ?></span>
+                                        </label>
+                                    <?php endfor; ?>
+                                </div>
+                                <p class="s-ayuda">1 estrella = muy insatisfecho · 5 estrellas = muy satisfecho.</p>
+                            </fieldset>
+
+                            <div class="s-campo">
+                                <label for="comentario" class="s-etiqueta">Comentario (opcional)</label>
+                                <textarea id="comentario" name="comentario" rows="3" maxlength="<?= ENCUESTA_COMENTARIO_MAX ?>"
+                                          class="s-control" data-contador
+                                          placeholder="¿Qué te pareció la atención? ¿Qué podríamos mejorar?"></textarea>
+                                <span class="s-ayuda">La encuesta solo puede responderse una vez.</span>
+                            </div>
+
+                            <div class="s-form-acciones">
+                                <button type="submit" class="s-btn s-btn-primario">
+                                    <i class="fa-solid fa-paper-plane" aria-hidden="true"></i>
+                                    Enviar encuesta
+                                </button>
+                            </div>
+                        </form>
+                    <?php endif; ?>
+                </section>
+            </div>
+
+            <!-- DATOS DEL TICKET -->
+            <aside class="s-ficha" aria-label="Datos del ticket">
+                <span class="s-rotulo">Datos del ticket</span>
+                <p class="s-ficha-numero s-mono"><?= $numero_ticket ?></p>
+                <dl class="s-ficha-datos">
+                    <div><dt>Estado</dt><dd><span class="s-insignia s-insignia-<?= $tono_estado ?>"><?= escapar($ticket['estado']) ?></span></dd></div>
+                    <div><dt>Prioridad</dt><dd><?= escapar($ticket['prioridad']) ?></dd></div>
+                    <div><dt>Categoría</dt><dd><?= escapar($categorias[$ticket['categoria'] ?? ''] ?? 'Sin categoría') ?></dd></div>
+                    <div><dt>Laboratorio</dt><dd><?= escapar($ticket['laboratorio']) ?></dd></div>
+                    <div><dt>Equipo</dt><dd><?= escapar($ticket['equipo']) ?></dd></div>
+                    <div><dt>Técnico</dt><dd><?= $ticket['tecnico_id'] === null ? 'Pendiente de asignación' : 'Asignado' ?></dd></div>
+                    <div><dt>Registrado</dt><dd><?= (int) $ticket['registro_epoch'] > 0
+                        ? escapar((new DateTimeImmutable('@' . (int) $ticket['registro_epoch']))
+                            ->setTimezone(new DateTimeZone('America/Costa_Rica'))->format('d/m/Y H:i'))
+                        : 'Sin dato' ?></dd></div>
+                    <?php if ($ticket['estado'] === 'Resuelta' && $ticket['fecha_resolucion'] !== null): ?>
+                        <div><dt>Resuelto</dt><dd><?= escapar(fechaHistorialLocal($ticket['fecha_resolucion'])) ?></dd></div>
+                    <?php endif; ?>
+                </dl>
+            </aside>
+        </div>
+
+    <?php endif; ?>
+
+</main>
+<?php require __DIR__ . '/includes/pie_publico.php'; ?>
+</body>
+</html>
+<?php $conn->close(); ?>

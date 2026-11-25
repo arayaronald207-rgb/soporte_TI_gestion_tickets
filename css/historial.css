@@ -1,0 +1,561 @@
+/* ==========================================================================
+   GESTIÓN DE INCIDENCIAS · DETALLE E HISTORIAL «SEÑAL» (Etapa 5)
+
+   Página: admin/detalle.php (única que usa esta hoja).
+   - Requiere css/tema.css (.s-linea-tiempo, .s-evento, .s-insignia, .s-aviso,
+     .s-vacio, .s-avatar), css/navegacion.css y css/formularios.css (.s-ficha,
+     .s-formulario, contador de caracteres).
+   - Las clases historial-item, historial-comentario, historial-evento,
+     historial-texto y detalle-datos se conservan en el marcado.
+
+   Distribución:
+     > 1100px  columna principal (descripción + historial) + ficha lateral fija
+     ≤ 1100px  una columna; la ficha aparece antes que el historial
+   ========================================================================== */
+
+
+/* --------------------------------------------------------------------------
+   1. RESUMEN DEL TICKET
+   -------------------------------------------------------------------------- */
+
+.s-app .dashboard-topbar h1 .s-mono {
+    color: var(--s-cian-700);
+    font-weight: 700;
+}
+
+.s-detalle-resumen {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: var(--s-esp-4) var(--s-esp-6);
+    margin-bottom: var(--s-esp-5);
+    padding: var(--s-esp-6);
+    border: 1px solid var(--s-borde);
+    border-radius: var(--s-radio-lg);
+    background:
+        linear-gradient(90deg, var(--s-superficie) 60%, rgba(255, 255, 255, 0.85)),
+        radial-gradient(rgba(15, 23, 34, 0.08) 1px, transparent 1px) var(--s-superficie);
+    background-size: 100% 100%, 18px 18px;
+    box-shadow: var(--s-sombra-1);
+}
+
+.s-detalle-resumen-principal {
+    min-width: 0;
+}
+
+.s-detalle-numero {
+    display: inline-block;
+    margin-bottom: var(--s-esp-2);
+    padding: 2px 10px;
+    border-radius: var(--s-radio-pildora);
+    background: var(--s-grafito-900);
+    color: var(--s-cian-400);
+    font-size: var(--s-texto-sm);
+    font-weight: var(--s-peso-fuerte);
+}
+
+.s-detalle-titulo {
+    margin: 0 0 var(--s-esp-3);
+    color: var(--s-texto);
+    font-size: clamp(1.25rem, 1.05rem + 0.8vw, 1.625rem);
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    line-height: 1.25;
+    overflow-wrap: anywhere;
+}
+
+.s-detalle-titulo.s-sin-dato {
+    color: var(--s-texto-suave);
+    font-style: italic;
+    font-weight: var(--s-peso-semi);
+}
+
+.s-app .s-detalle-etiquetas {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--s-esp-2);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.s-app .s-detalle-etiquetas li {
+    display: flex;
+    margin: 0;
+    padding: 0;
+}
+
+.s-app .s-detalle-etiquetas li::marker {
+    content: none;
+}
+
+/* Responsable */
+.s-detalle-responsable {
+    display: flex;
+    flex-direction: column;
+    gap: var(--s-esp-2);
+    align-self: start;
+    min-width: 180px;
+    padding: var(--s-esp-3) var(--s-esp-4);
+    border: 1px solid var(--s-borde);
+    border-radius: var(--s-radio-md);
+    background: var(--s-fondo);
+}
+
+.s-detalle-responsable-etiqueta {
+    color: var(--s-texto-suave);
+    font-size: 10px;
+    font-weight: var(--s-peso-fuerte);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.s-detalle-responsable .s-persona {
+    font-weight: var(--s-peso-semi);
+    overflow-wrap: anywhere;
+}
+
+.s-persona-sin-asignar {
+    color: var(--s-ambar-700);
+}
+
+.s-persona-sin-asignar .s-avatar-vacio {
+    border-color: var(--s-ambar-500);
+    color: var(--s-ambar-700);
+    font-size: 11px;
+}
+
+/* Acciones según el rol */
+.s-detalle-acciones {
+    grid-column: 1 / -1;
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--s-esp-2);
+    padding-top: var(--s-esp-4);
+    border-top: 1px solid var(--s-borde);
+}
+
+.s-detalle-acciones .s-btn-riesgo {
+    margin-left: auto;
+}
+
+/* Categoría (mismo componente visual que el listado) */
+.s-categoria {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 3px 9px;
+    border: 1px solid var(--s-borde);
+    border-radius: var(--s-radio-sm);
+    background: var(--s-superficie);
+    color: var(--s-texto);
+    font-size: var(--s-texto-xs);
+    font-weight: var(--s-peso-semi);
+    white-space: nowrap;
+}
+
+.s-categoria i { font-size: 11px; }
+.s-categoria-hardware i { color: var(--s-cian-700); }
+.s-categoria-software i { color: #6D28D9; }
+.s-categoria-red i      { color: var(--s-estado-proceso-texto); }
+
+.s-categoria-ninguna {
+    border-style: dashed;
+    border-color: var(--s-borde-fuerte);
+    color: var(--s-texto-suave);
+}
+
+.s-detalle-aviso {
+    margin-bottom: var(--s-esp-5);
+}
+
+.s-detalle-aviso i {
+    margin-top: 3px;
+}
+
+
+/* --------------------------------------------------------------------------
+   2. REJILLA Y TARJETAS
+   -------------------------------------------------------------------------- */
+
+/* Contenido principal a la izquierda y ficha a la derecha (escritorio) */
+.s-app .s-detalle-rejilla {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 300px;
+    grid-template-areas: "principal ficha";
+    align-items: start;
+    gap: var(--s-esp-5);
+}
+
+.s-app .s-detalle-principal { grid-area: principal; }
+.s-app .s-detalle-ficha     { grid-area: ficha; }
+
+.s-detalle-principal {
+    display: flex;
+    flex-direction: column;
+    gap: var(--s-esp-5);
+    min-width: 0;
+}
+
+.s-detalle-tarjeta {
+    padding: var(--s-esp-6);
+    border: 1px solid var(--s-borde);
+    border-radius: var(--s-radio-lg);
+    background: var(--s-superficie);
+    box-shadow: var(--s-sombra-1);
+}
+
+/* Cabecera de tarjeta: mismo patrón que los formularios (icono grafito + título) */
+.s-detalle-cabecera {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--s-esp-3);
+    margin-bottom: var(--s-esp-4);
+}
+
+.s-detalle-cabecera > div {
+    flex: 1;
+    min-width: 0;
+}
+
+.s-detalle-cabecera p {
+    margin: 2px 0 0;
+    color: var(--s-texto-suave);
+    font-size: var(--s-texto-xs);
+    line-height: 1.5;
+    overflow-wrap: anywhere;
+}
+
+.s-detalle-icono {
+    display: grid;
+    place-items: center;
+    width: 40px;
+    height: 40px;
+    flex-shrink: 0;
+    border-radius: var(--s-radio-md);
+    background: var(--s-grafito-900);
+    color: var(--s-cian-400);
+    font-size: 16px;
+}
+
+.s-detalle-subtitulo {
+    margin: 0;
+    color: var(--s-texto);
+    font-size: var(--s-texto-lg);
+    font-weight: 800;
+    letter-spacing: -0.01em;
+    line-height: 1.3;
+}
+
+.s-detalle-descripcion {
+    margin: 0;
+    padding: var(--s-esp-4);
+    border-radius: var(--s-radio-md);
+    background: var(--s-fondo);
+    color: var(--s-texto);
+    font-size: var(--s-texto-sm);
+    line-height: 1.7;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+}
+
+/* Ficha lateral de datos (amplía .s-ficha de formularios.css) */
+.s-app .s-detalle-ficha {
+    position: sticky;
+    top: var(--s-esp-6);
+}
+
+.s-detalle-ficha .s-ficha-datos {
+    margin-top: var(--s-esp-1);
+}
+
+
+/* --------------------------------------------------------------------------
+   3. HISTORIAL: LÍNEA DE TIEMPO
+   -------------------------------------------------------------------------- */
+
+.s-historial-cabecera {
+    margin-bottom: var(--s-esp-5);
+    padding-bottom: var(--s-esp-4);
+    border-bottom: 1px solid var(--s-borde);
+}
+
+.s-historial-total {
+    flex-shrink: 0;
+    align-self: center;
+    padding: 3px 10px;
+    border-radius: var(--s-radio-pildora);
+    background: var(--s-superficie-hundida);
+    color: var(--s-texto-suave);
+    font-family: var(--s-fuente-mono);
+    font-size: var(--s-texto-xs);
+    font-weight: var(--s-peso-semi);
+}
+
+.s-historial .s-linea-tiempo {
+    margin-bottom: var(--s-esp-2);
+}
+
+/* El último evento no prolonga la línea vertical */
+.s-historial .s-linea-tiempo::before {
+    bottom: 32px;
+}
+
+.s-historial .s-evento:last-child {
+    padding-bottom: var(--s-esp-4);
+}
+
+/* Iconos adicionales (los demás tipos están en tema.css) */
+.s-evento-edicion      .s-evento-icono { background: var(--s-superficie-hundida); color: var(--s-grafito-700); }
+.s-evento-desarchivado .s-evento-icono { background: var(--s-cian-50); color: var(--s-cian-700); }
+.s-evento-comentario   .s-evento-icono { background: var(--s-ambar-50); color: var(--s-ambar-700); box-shadow: 0 0 0 1px #F5D3A0; }
+
+.s-evento-tipo {
+    color: var(--s-texto);
+    font-weight: var(--s-peso-fuerte);
+}
+
+.s-evento-autor {
+    color: var(--s-texto);
+    font-weight: var(--s-peso-medio);
+}
+
+.s-evento-autor .s-mono {
+    color: var(--s-texto-suave);
+    font-size: var(--s-texto-xs);
+    font-weight: var(--s-peso-normal);
+}
+
+.s-evento-tiempo {
+    margin-left: auto;
+}
+
+/* Eventos de actividad: texto discreto */
+.s-evento-detalle {
+    margin: 4px 0 0;
+    color: var(--s-texto-suave);
+    font-size: var(--s-texto-sm);
+    line-height: var(--s-interlineado);
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+}
+
+/* Comentarios: burbuja destacada escrita por una persona */
+.s-historial .s-evento-cuerpo {
+    margin: var(--s-esp-2) 0 0;
+    border-color: #F5D3A0;
+    background: #FFFCF5;
+    color: var(--s-texto);
+    font-size: var(--s-texto-sm);
+}
+
+.s-historial .historial-comentario .s-evento-tipo {
+    color: var(--s-ambar-700);
+}
+
+/* Cambios «antes → después» */
+.s-historial .s-cambio {
+    margin: var(--s-esp-2) 0 0;
+}
+
+.s-cambio-valor {
+    display: inline-flex;
+    align-items: center;
+    padding: 2px 9px;
+    border: 1px solid var(--s-borde);
+    border-radius: var(--s-radio-pildora);
+    background: var(--s-superficie);
+    color: var(--s-texto-suave);
+    font-weight: var(--s-peso-semi);
+}
+
+.s-cambio-nuevo {
+    border-color: var(--s-cian-100);
+    background: var(--s-cian-50);
+    color: var(--s-cian-700);
+}
+
+.s-historial-vacio {
+    margin-bottom: var(--s-esp-4);
+    border: 1px dashed var(--s-borde-fuerte);
+    border-radius: var(--s-radio-lg);
+}
+
+.s-historial-vacio p {
+    max-width: 42ch;
+    margin: 0;
+    font-size: var(--s-texto-sm);
+}
+
+
+/* --------------------------------------------------------------------------
+   4. NUEVO COMENTARIO
+   -------------------------------------------------------------------------- */
+
+.s-comentar {
+    display: flex;
+    flex-direction: column;
+    gap: var(--s-esp-3);
+    margin-top: var(--s-esp-2);
+    padding: var(--s-esp-4);
+    border: 1px solid var(--s-borde);
+    border-radius: var(--s-radio-lg);
+    background: var(--s-fondo);
+}
+
+.s-comentar .s-aviso i {
+    margin-top: 3px;
+}
+
+.s-app .s-comentar-form {
+    gap: var(--s-esp-3);
+}
+
+.s-comentar .s-etiqueta i {
+    margin-right: 4px;
+    color: var(--s-cian-600);
+}
+
+.s-app .s-comentar-form textarea.s-control {
+    min-height: 110px;
+}
+
+/* Pie del comentario: autor a la izquierda, botón a la derecha, con separación clara */
+.s-comentar-acciones {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--s-esp-4) var(--s-esp-6);
+    margin-top: var(--s-esp-1);
+    padding-top: var(--s-esp-4);
+    border-top: 1px dashed var(--s-borde-fuerte);
+}
+
+.s-comentar-autor {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--s-esp-3);
+    min-width: 0;
+    padding: 6px 14px 6px 6px;
+    border: 1px solid var(--s-borde);
+    border-radius: var(--s-radio-pildora);
+    background: var(--s-superficie);
+}
+
+.s-comentar-autor .s-avatar {
+    width: 30px;
+    height: 30px;
+    font-size: 11px;
+}
+
+.s-comentar-autor-texto {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    line-height: 1.25;
+}
+
+.s-comentar-autor-texto small {
+    color: var(--s-texto-suave);
+    font-size: 11px;
+}
+
+.s-comentar-autor-texto strong {
+    overflow: hidden;
+    color: var(--s-texto);
+    font-size: var(--s-texto-sm);
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.s-comentar-acciones .s-btn {
+    min-height: 44px;
+    padding: 0 var(--s-esp-6);
+}
+
+
+/* --------------------------------------------------------------------------
+   5. ADAPTACIÓN A PANTALLAS
+   -------------------------------------------------------------------------- */
+
+@media (max-width: 1100px) {
+    /* Una sola columna: la ficha se muestra entre el resumen y la descripción */
+    .s-app .s-detalle-rejilla {
+        grid-template-columns: minmax(0, 1fr);
+        grid-template-areas:
+            "ficha"
+            "principal";
+    }
+
+    .s-app .s-detalle-ficha {
+        position: static;
+    }
+
+    .s-detalle-ficha .s-ficha-datos {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+        gap: var(--s-esp-3) var(--s-esp-5);
+    }
+}
+
+@media (max-width: 760px) {
+    .s-detalle-resumen {
+        grid-template-columns: minmax(0, 1fr);
+        padding: var(--s-esp-4);
+    }
+
+    .s-detalle-tarjeta {
+        padding: var(--s-esp-4);
+    }
+
+    .s-detalle-acciones .s-btn {
+        flex: 1 1 calc(50% - var(--s-esp-2));
+    }
+
+    .s-detalle-acciones .s-btn-riesgo {
+        margin-left: 0;
+    }
+
+    .s-evento-tiempo {
+        flex-basis: 100%;
+        margin-left: 0;
+    }
+
+    .s-comentar {
+        padding: var(--s-esp-3);
+    }
+
+    /* Autor arriba y botón a ancho completo debajo */
+    .s-comentar-acciones {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .s-comentar-autor {
+        align-self: flex-start;
+        max-width: 100%;
+    }
+
+    .s-comentar-acciones .s-btn {
+        width: 100%;
+    }
+
+    .s-historial-cabecera {
+        flex-wrap: wrap;
+    }
+
+    .s-historial-total {
+        margin-left: 52px;
+    }
+}
+
+@media (max-width: 420px) {
+    .s-historial .s-evento {
+        padding-left: 42px;
+    }
+
+    .s-detalle-acciones .s-btn {
+        flex-basis: 100%;
+    }
+}

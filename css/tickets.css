@@ -1,0 +1,615 @@
+/* ==========================================================================
+   GESTIÓN DE INCIDENCIAS · LISTADO DE TICKETS «SEÑAL» (Etapa 3)
+
+   - Requiere css/tema.css (variables, .s-insignia, .s-chip, .s-pestana,
+     .s-avatar, .s-btn, .s-vacio) y css/metricas.css (.s-seccion-*).
+   - Solo se carga en admin/index.php, al final.
+   - Un único marcado de tabla: en pantallas anchas es una tabla y en
+     pantallas medianas o pequeñas cada fila se muestra como tarjeta, por lo
+     que ambas vistas presentan exactamente la misma información.
+
+   Puntos de corte (ancho de la ventana):
+     ≥ 1400px  tabla de 10 columnas
+     < 1400px  tarjetas en rejilla adaptable (3, 2 o 1 columnas)
+   ========================================================================== */
+
+
+/* --------------------------------------------------------------------------
+   1. CABECERA Y PESTAÑAS
+   -------------------------------------------------------------------------- */
+
+.s-tickets {
+    margin-bottom: var(--s-esp-8);
+}
+
+.s-tickets-cabecera {
+    align-items: center;
+}
+
+.s-tickets-pestanas .s-pestana {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--s-esp-2);
+}
+
+.s-tickets-pestanas .s-pestana i {
+    font-size: 13px;
+}
+
+.s-pestana-contador {
+    min-width: 22px;
+    padding: 1px 7px;
+    border-radius: var(--s-radio-pildora);
+    background: rgba(15, 23, 34, 0.07);
+    color: var(--s-texto-suave);
+    font-family: var(--s-fuente-mono);
+    font-size: 11px;
+    font-weight: var(--s-peso-fuerte);
+    text-align: center;
+}
+
+.s-pestana.s-activa .s-pestana-contador {
+    background: var(--s-cian-50);
+    color: var(--s-cian-700);
+}
+
+
+/* --------------------------------------------------------------------------
+   2. FILTROS
+   (Se anulan las reglas globales antiguas de form, label, input y select.)
+   -------------------------------------------------------------------------- */
+
+.s-app .s-filtros {
+    display: flex;
+    flex-flow: row wrap;
+    align-items: flex-end;
+    gap: var(--s-esp-3);
+    margin: 0 0 var(--s-esp-4);
+    padding: var(--s-esp-4);
+    border: 1px solid var(--s-borde);
+    border-radius: var(--s-radio-lg);
+    background: var(--s-superficie);
+    box-shadow: var(--s-sombra-1);
+}
+
+.s-filtro {
+    display: flex;
+    flex: 1 1 150px;
+    flex-direction: column;
+    gap: 6px;
+    min-width: 0;
+}
+
+.s-filtro-buscar {
+    flex: 3 1 280px;
+}
+
+.s-app .s-filtro-etiqueta {
+    color: var(--s-texto-suave);
+    font-size: var(--s-texto-xs);
+    font-weight: var(--s-peso-semi);
+    letter-spacing: 0.02em;
+}
+
+.s-app .s-filtro-control {
+    width: 100%;
+    height: 42px;
+    padding: 0 12px;
+    border: 1px solid var(--s-borde-fuerte);
+    border-radius: var(--s-radio-md);
+    background-color: var(--s-superficie);
+    color: var(--s-texto);
+    font-family: var(--s-fuente);
+    font-size: var(--s-texto-sm);
+    transition: border-color var(--s-transicion), box-shadow var(--s-transicion);
+}
+
+.s-app .s-filtro-control:hover {
+    border-color: var(--s-grafito-600);
+}
+
+.s-app .s-filtro-control:focus {
+    outline: none;
+    border-color: var(--s-cian-600);
+    box-shadow: var(--s-anillo-foco);
+}
+
+.s-app select.s-filtro-control {
+    padding-right: 34px;
+    appearance: none;
+    -webkit-appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 8' fill='none'%3E%3Cpath d='M1 1.5l5 5 5-5' stroke='%235B6675' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 12px center;
+    background-size: 11px 8px;
+    cursor: pointer;
+    text-overflow: ellipsis;
+}
+
+/* Filtro con un valor elegido: borde cian para indicar que está activo */
+.s-app select.s-filtro-control:has(option:checked:not([value=""])) {
+    border-color: var(--s-cian-600);
+    background-color: var(--s-cian-50);
+}
+
+.s-buscador {
+    position: relative;
+}
+
+.s-buscador i {
+    position: absolute;
+    top: 50%;
+    left: 13px;
+    transform: translateY(-50%);
+    color: var(--s-texto-tenue);
+    font-size: 14px;
+    pointer-events: none;
+}
+
+.s-app .s-buscador .s-filtro-control {
+    padding-left: 38px;
+}
+
+.s-filtros-botones {
+    display: flex;
+    flex: 0 0 auto;
+    gap: var(--s-esp-2);
+}
+
+.s-filtros-botones .s-btn {
+    height: 42px;
+}
+
+
+/* --------------------------------------------------------------------------
+   3. RESULTADOS Y CHIPS DE FILTROS ACTIVOS
+   -------------------------------------------------------------------------- */
+
+.s-resultados {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--s-esp-2) var(--s-esp-4);
+    margin-bottom: var(--s-esp-3);
+    font-size: var(--s-texto-sm);
+    color: var(--s-texto-suave);
+}
+
+.s-resultados-total {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--s-esp-2);
+}
+
+.s-resultados-total strong {
+    color: var(--s-texto);
+    font-family: var(--s-fuente-mono);
+}
+
+.s-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+
+/* --------------------------------------------------------------------------
+   4. ELEMENTOS DE CADA TICKET
+   -------------------------------------------------------------------------- */
+
+.s-ticket-titulo {
+    color: var(--s-texto);
+    font-weight: var(--s-peso-fuerte);
+    line-height: 1.35;
+    text-decoration: none;
+    overflow-wrap: anywhere;
+}
+
+.s-ticket-titulo:hover {
+    color: var(--s-cian-700);
+    text-decoration: underline;
+    text-underline-offset: 3px;
+}
+
+.s-ticket-titulo.s-sin-dato {
+    color: var(--s-texto-suave);
+    font-style: italic;
+    font-weight: var(--s-peso-medio);
+}
+
+/* Categoría: chip neutro con icono */
+.s-categoria {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 3px 9px;
+    border: 1px solid var(--s-borde);
+    border-radius: var(--s-radio-sm);
+    background: var(--s-superficie);
+    color: var(--s-texto);
+    font-size: var(--s-texto-xs);
+    font-weight: var(--s-peso-semi);
+    white-space: nowrap;
+}
+
+.s-categoria i { font-size: 11px; }
+
+.s-categoria-hardware i { color: var(--s-cian-700); }
+.s-categoria-software i { color: #6D28D9; }
+.s-categoria-red i      { color: var(--s-estado-proceso-texto); }
+
+.s-categoria-ninguna {
+    border-style: dashed;
+    border-color: var(--s-borde-fuerte);
+    color: var(--s-texto-suave);
+}
+
+/* Técnico */
+.s-persona {
+    min-width: 0;
+    overflow-wrap: anywhere;
+}
+
+.s-persona .s-avatar {
+    width: 26px;
+    height: 26px;
+    font-size: 10px;
+}
+
+.s-persona-sin-asignar {
+    color: var(--s-ambar-700);
+    font-weight: var(--s-peso-semi);
+}
+
+.s-persona-sin-asignar .s-avatar-vacio {
+    border-color: var(--s-ambar-500);
+    color: var(--s-ambar-700);
+    font-size: 10px;
+}
+
+/* Acciones */
+.s-acciones {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+}
+
+.s-accion {
+    --accion-color: var(--s-texto-suave);
+    --accion-fondo: var(--s-superficie-hundida);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    width: 32px;
+    height: 32px;
+    border: 1px solid transparent;
+    border-radius: var(--s-radio-sm);
+    background: transparent;
+    color: var(--accion-color);
+    font-size: 13px;
+    text-decoration: none;
+    transition: background-color var(--s-transicion), color var(--s-transicion), border-color var(--s-transicion);
+}
+
+.s-accion:hover {
+    background: var(--accion-fondo);
+    border-color: var(--accion-borde, transparent);
+}
+
+.s-accion:focus-visible {
+    outline: none;
+    box-shadow: var(--s-anillo-foco);
+}
+
+/* El texto solo se muestra en tarjetas; en tabla basta el icono + aria-label */
+.s-accion-texto {
+    display: none;
+    font-size: var(--s-texto-xs);
+    font-weight: var(--s-peso-semi);
+}
+
+.s-accion-detalle  { --accion-color: var(--s-cian-700); --accion-fondo: var(--s-cian-50); }
+.s-accion-asignar  { --accion-color: var(--s-grafito-700); --accion-fondo: var(--s-superficie-hundida); }
+.s-accion-editar   { --accion-color: var(--s-grafito-700); --accion-fondo: var(--s-superficie-hundida); }
+.s-accion-estado   { --accion-color: var(--s-estado-proceso-texto); --accion-fondo: var(--s-estado-proceso-fondo); }
+.s-accion-archivar { --accion-color: var(--s-error-texto); --accion-fondo: var(--s-error-fondo); --accion-borde: #F1B8B2; }
+
+/* Separador visual antes de la acción de archivo (acción delicada) */
+.s-accion-archivar {
+    margin-left: 4px;
+    position: relative;
+}
+
+.s-accion-archivar::before {
+    content: "";
+    position: absolute;
+    left: -5px;
+    top: 7px;
+    bottom: 7px;
+    width: 1px;
+    background: var(--s-borde);
+}
+
+
+/* --------------------------------------------------------------------------
+   5. VISTA DE TABLA (≥ 1400px)
+   -------------------------------------------------------------------------- */
+
+.s-tabla-contenedor {
+    border: 1px solid var(--s-borde);
+    border-radius: var(--s-radio-lg);
+    background: var(--s-superficie);
+    box-shadow: var(--s-sombra-1);
+    overflow-x: auto;
+}
+
+.s-tabla-tickets {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    font-family: var(--s-fuente);
+    font-size: 13px;
+    color: var(--s-texto);
+}
+
+.s-tabla-tickets thead th {
+    position: sticky;
+    top: 0;
+    padding: 11px 12px;
+    border-bottom: 1px solid var(--s-borde);
+    background: var(--s-fondo);
+    color: var(--s-texto-suave);
+    font-size: 11px;
+    font-weight: var(--s-peso-fuerte);
+    letter-spacing: 0.06em;
+    text-align: left;
+    text-transform: uppercase;
+    white-space: nowrap;
+}
+
+.s-tabla-tickets thead th:first-child { border-top-left-radius: var(--s-radio-lg); }
+.s-tabla-tickets thead th:last-child  { border-top-right-radius: var(--s-radio-lg); }
+
+.s-tabla-tickets tbody td {
+    padding: 12px;
+    border-bottom: 1px solid var(--s-superficie-hundida);
+    vertical-align: middle;
+}
+
+.s-tabla-tickets tbody tr:last-child td {
+    border-bottom: 0;
+}
+
+.s-tabla-tickets tbody tr.s-ticket {
+    transition: background-color var(--s-transicion);
+}
+
+.s-tabla-tickets tbody tr.s-ticket:hover {
+    background: #FAFBFC;
+}
+
+/* Barra de prioridad en la primera celda (las filas de tabla no siempre muestran sombras) */
+.s-tabla-tickets tr.s-borde-prioridad-baja  > td:first-child { box-shadow: inset 3px 0 0 var(--s-prioridad-baja); }
+.s-tabla-tickets tr.s-borde-prioridad-media > td:first-child { box-shadow: inset 3px 0 0 var(--s-prioridad-media); }
+.s-tabla-tickets tr.s-borde-prioridad-alta  > td:first-child { box-shadow: inset 3px 0 0 var(--s-prioridad-alta); }
+.s-tabla-tickets tr.s-ticket { box-shadow: none; }
+
+.s-celda-id {
+    padding-left: 16px !important;
+    white-space: nowrap;
+}
+
+.s-celda-titulo {
+    min-width: 180px;
+    max-width: 280px;
+}
+
+.s-celda-meta {
+    max-width: 160px;
+    overflow-wrap: anywhere;
+}
+
+.s-celda-tecnico {
+    min-width: 130px;
+}
+
+.s-celda-acciones .s-acciones {
+    flex-wrap: nowrap;
+}
+
+.s-fila-vacia td {
+    padding: 0 !important;
+}
+
+
+/* --------------------------------------------------------------------------
+   6. VISTA DE TARJETAS (< 1400px)
+   -------------------------------------------------------------------------- */
+
+@media (max-width: 1399.98px) {
+
+    .s-tabla-contenedor {
+        border: 0;
+        background: transparent;
+        box-shadow: none;
+        overflow: visible;
+    }
+
+    .s-tabla-tickets,
+    .s-tabla-tickets tbody {
+        display: block;
+    }
+
+    /* Encabezados ocultos visualmente: cada dato lleva su propia etiqueta */
+    .s-tabla-tickets thead {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        overflow: hidden;
+        clip: rect(0, 0, 0, 0);
+        white-space: nowrap;
+    }
+
+    .s-tabla-tickets tbody {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(min(100%, 320px), 1fr));
+        gap: var(--s-esp-3);
+    }
+
+    .s-tabla-tickets tr.s-ticket {
+        display: flex;
+        flex-wrap: wrap;
+        align-content: flex-start;
+        gap: var(--s-esp-3) var(--s-esp-4);
+        padding: var(--s-esp-4) var(--s-esp-4) var(--s-esp-3) var(--s-esp-5);
+        border: 1px solid var(--s-borde);
+        border-radius: var(--s-radio-lg);
+        background: var(--s-superficie);
+        box-shadow: var(--s-sombra-1);
+        transition: border-color var(--s-transicion), box-shadow var(--s-transicion);
+    }
+
+    /* Al pasar el ratón solo cambia el borde: la sombra conserva la barra de prioridad */
+    .s-tabla-tickets tr.s-ticket:hover {
+        background: var(--s-superficie);
+        border-color: var(--s-cian-100);
+    }
+
+    /* Barra de prioridad a la izquierda de la tarjeta */
+    .s-tabla-tickets tr.s-borde-prioridad-baja  { box-shadow: inset 4px 0 0 var(--s-prioridad-baja), var(--s-sombra-1); }
+    .s-tabla-tickets tr.s-borde-prioridad-media { box-shadow: inset 4px 0 0 var(--s-prioridad-media), var(--s-sombra-1); }
+    .s-tabla-tickets tr.s-borde-prioridad-alta  { box-shadow: inset 4px 0 0 var(--s-prioridad-alta), var(--s-sombra-1); }
+    .s-tabla-tickets tr.s-borde-prioridad-baja  > td:first-child,
+    .s-tabla-tickets tr.s-borde-prioridad-media > td:first-child,
+    .s-tabla-tickets tr.s-borde-prioridad-alta  > td:first-child { box-shadow: none; }
+
+    .s-tabla-tickets tbody td {
+        display: block;
+        min-width: 0;
+        max-width: none;
+        padding: 0 !important;
+        border: 0;
+    }
+
+    /* Fila 1: número · prioridad · estado */
+    .s-celda-id        { order: 1; flex: 1 1 auto; align-self: center; }
+    .s-celda-prioridad { order: 2; flex: 0 0 auto; }
+    .s-celda-estado    { order: 3; flex: 0 0 auto; }
+
+    /* Fila 2: título */
+    .s-celda-titulo {
+        order: 4;
+        flex: 1 1 100%;
+        font-size: var(--s-texto-md);
+    }
+
+    /* Filas 3 y 4: datos con etiqueta */
+    .s-celda-categoria { order: 5; flex: 1 1 calc(50% - var(--s-esp-4)); }
+    .s-celda-tecnico   { order: 6; flex: 1 1 calc(50% - var(--s-esp-4)); }
+    .s-celda-meta      { order: 7; flex: 1 1 calc(33.333% - var(--s-esp-4)); }
+
+    .s-tabla-tickets td[data-etiqueta]::before {
+        content: attr(data-etiqueta);
+        display: block;
+        margin-bottom: 4px;
+        color: var(--s-texto-suave);
+        font-size: 10px;
+        font-weight: var(--s-peso-fuerte);
+        letter-spacing: 0.07em;
+        text-transform: uppercase;
+    }
+
+    .s-celda-meta {
+        font-size: var(--s-texto-sm);
+    }
+
+    /* Fila final: acciones con texto visible */
+    .s-celda-acciones {
+        order: 8;
+        flex: 1 1 100%;
+        margin-top: 2px;
+        padding-top: var(--s-esp-3) !important;
+        border-top: 1px solid var(--s-superficie-hundida) !important;
+    }
+
+    .s-celda-acciones .s-acciones {
+        flex-wrap: wrap;
+        gap: 6px;
+    }
+
+    .s-accion {
+        width: auto;
+        height: 34px;
+        padding: 0 10px;
+        border-color: var(--s-borde);
+        background: var(--s-superficie);
+    }
+
+    .s-accion-texto {
+        display: inline;
+    }
+
+    .s-accion-archivar {
+        margin-left: auto;
+        border-color: #F1B8B2;
+    }
+
+    .s-accion-archivar::before {
+        display: none;
+    }
+
+    /* Estado vacío ocupa todo el ancho */
+    .s-tabla-tickets tr.s-fila-vacia {
+        display: block;
+        grid-column: 1 / -1;
+        border: 1px solid var(--s-borde);
+        border-radius: var(--s-radio-lg);
+        background: var(--s-superficie);
+    }
+}
+
+/* Móvil: datos en dos columnas y acciones a ancho completo */
+@media (max-width: 480px) {
+    .s-celda-meta {
+        flex-basis: calc(50% - var(--s-esp-4));
+    }
+
+    .s-celda-acciones .s-acciones {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(96px, 1fr));
+    }
+
+    .s-accion-archivar {
+        margin-left: 0;
+    }
+
+    .s-filtros-botones {
+        flex: 1 1 100%;
+    }
+
+    .s-filtros-botones .s-btn {
+        flex: 1;
+    }
+
+    .s-tickets-pestanas {
+        display: flex;
+        width: 100%;
+    }
+
+    .s-tickets-pestanas .s-pestana {
+        flex: 1;
+        justify-content: center;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .s-accion,
+    .s-tabla-tickets tr.s-ticket,
+    .s-app .s-filtro-control {
+        transition: none;
+    }
+}
