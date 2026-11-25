@@ -202,7 +202,7 @@ function escapar($texto) {
             <p class="s-seccion-descripcion">Consulta los tickets registrados.</p>
 
             <!-- FILTROS (mismos parámetros GET) -->
-            <form method="GET" class="s-filtros" role="search" aria-label="Filtrar incidencias">
+            <form method="GET" action="incidencias.php#resultados" class="s-filtros" role="search" aria-label="Filtrar incidencias">
 
                 <div class="s-filtro s-filtro-buscar">
                     <label for="laboratorio" class="s-filtro-etiqueta">Laboratorio</label>
@@ -244,14 +244,14 @@ function escapar($texto) {
                         <i class="fa-solid fa-filter" aria-hidden="true"></i>
                         Filtrar
                     </button>
-                    <a href="incidencias.php" class="s-btn s-btn-secundario">
+                    <a href="incidencias.php#resultados" class="s-btn s-btn-secundario">
                         <i class="fa-solid fa-rotate-left" aria-hidden="true"></i>
                         Limpiar
                     </a>
                 </div>
             </form>
 
-            <div class="s-resultados" aria-live="polite">
+            <div id="resultados" class="s-resultados" aria-live="polite">
                 <span class="s-resultados-total">
                     <i class="fa-solid fa-list" aria-hidden="true"></i>
                     Mostrando <strong><?= (int) $resultado->num_rows ?></strong> incidencia(s)

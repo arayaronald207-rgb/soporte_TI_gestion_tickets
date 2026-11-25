@@ -528,6 +528,30 @@ button.s-menu-salir { padding: 0; font-size: inherit; }
 
 
 /* --------------------------------------------------------------------------
+   5b. ANCLA DE RESULTADOS (#resultados)
+   Los filtros, «Limpiar» y los chips llevan a #resultados: la página queda
+   en el listado. Funciona sin JavaScript; el margen deja libre la barra
+   superior fija del celular (60 px, solo existe con JavaScript).
+   -------------------------------------------------------------------------- */
+
+#resultados {
+    scroll-margin-top: var(--s-esp-4);
+}
+
+@media (max-width: 1023.98px) {
+    .s-js #resultados {
+        scroll-margin-top: calc(60px + var(--s-esp-4));
+    }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+    html {
+        scroll-behavior: smooth;
+    }
+}
+
+
+/* --------------------------------------------------------------------------
    6. PREFERENCIAS DE MOVIMIENTO
    -------------------------------------------------------------------------- */
 

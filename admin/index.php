@@ -306,7 +306,7 @@ if (isset($_GET["asignado"])) {
                         <?= $metricas['sin_asignar'] > 0 ? 'Activos sin técnico responsable' : 'Solo activos · ninguno pendiente de asignar' ?>
                     </span>
                     <?php if ($es_admin && $metricas['sin_asignar'] > 0): ?>
-                        <a href="index.php?tecnico_id=sin_asignar" class="s-kpi-accion">
+                        <a href="index.php?tecnico_id=sin_asignar#resultados" class="s-kpi-accion">
                             Ver tickets sin asignar
                             <i class="fa-solid fa-arrow-right" aria-hidden="true"></i>
                         </a>
@@ -403,7 +403,7 @@ if (isset($_GET["asignado"])) {
                     <strong class="s-kpi-valor"><?= $metricas_sla['vencido'] ?></strong>
                     <span class="s-kpi-nota">Abiertos que superaron su plazo</span>
                     <?php if ($metricas_sla['vencido'] > 0): ?>
-                        <a href="index.php?sla=vencido" class="s-kpi-accion">Ver vencidos <i class="fa-solid fa-arrow-right" aria-hidden="true"></i></a>
+                        <a href="index.php?sla=vencido#resultados" class="s-kpi-accion">Ver vencidos <i class="fa-solid fa-arrow-right" aria-hidden="true"></i></a>
                     <?php endif; ?>
                 </article>
 
@@ -415,7 +415,7 @@ if (isset($_GET["asignado"])) {
                     <strong class="s-kpi-valor"><?= $metricas_sla['por_vencer'] ?></strong>
                     <span class="s-kpi-nota">Consumieron el <?= (int) (SLA_FRACCION_AVISO * 100) ?> % o más del plazo</span>
                     <?php if ($metricas_sla['por_vencer'] > 0): ?>
-                        <a href="index.php?sla=por_vencer" class="s-kpi-accion">Ver por vencer <i class="fa-solid fa-arrow-right" aria-hidden="true"></i></a>
+                        <a href="index.php?sla=por_vencer#resultados" class="s-kpi-accion">Ver por vencer <i class="fa-solid fa-arrow-right" aria-hidden="true"></i></a>
                     <?php endif; ?>
                 </article>
 
@@ -635,7 +635,7 @@ if (isset($_GET["asignado"])) {
         // URL del listado sin un filtro concreto (mismos parámetros GET existentes).
         $url_sin_filtro = static function (string $clave) use ($filtros_aplicados): string {
             $consulta = http_build_query(array_diff_key($filtros_aplicados, [$clave => true]));
-            return 'index.php' . ($consulta !== '' ? '?' . $consulta : '');
+            return 'index.php' . ($consulta !== '' ? '?' . $consulta : '') . '#resultados';
         };
 
         $nombre_tecnico_filtro = 'Sin asignar';
@@ -659,7 +659,7 @@ if (isset($_GET["asignado"])) {
         if ($sla_filtro !== '') { $chips_filtros['sla'] = 'SLA: ' . $opciones_sla[$sla_filtro]; }
 
         $iconos_categoria = ['hardware' => 'fa-microchip', 'software' => 'fa-code', 'red' => 'fa-network-wired'];
-        $url_limpiar = 'index.php' . ($ver_archivados ? '?archivados=1' : '');
+        $url_limpiar = 'index.php' . ($ver_archivados ? '?archivados=1' : '') . '#resultados';
         ?>
         <section class="s-tickets" aria-labelledby="titulo-tickets">
 
@@ -673,12 +673,12 @@ if (isset($_GET["asignado"])) {
 
                 <?php if ($es_admin): ?>
                     <nav class="s-pestanas s-tickets-pestanas" aria-label="Vista de tickets">
-                        <a href="index.php" class="s-pestana<?= !$ver_archivados ? ' s-activa' : '' ?>"<?= !$ver_archivados ? ' aria-current="page"' : '' ?>>
+                        <a href="index.php#resultados" class="s-pestana<?= !$ver_archivados ? ' s-activa' : '' ?>"<?= !$ver_archivados ? ' aria-current="page"' : '' ?>>
                             <i class="fa-solid fa-inbox" aria-hidden="true"></i>
                             Sin archivar
                             <span class="s-pestana-contador"><?= $total ?></span>
                         </a>
-                        <a href="index.php?archivados=1" class="s-pestana<?= $ver_archivados ? ' s-activa' : '' ?>"<?= $ver_archivados ? ' aria-current="page"' : '' ?>>
+                        <a href="index.php?archivados=1#resultados" class="s-pestana<?= $ver_archivados ? ' s-activa' : '' ?>"<?= $ver_archivados ? ' aria-current="page"' : '' ?>>
                             <i class="fa-solid fa-box-archive" aria-hidden="true"></i>
                             Archivados
                             <span class="s-pestana-contador"><?= $metricas['archivados'] ?></span>
@@ -692,7 +692,7 @@ if (isset($_GET["asignado"])) {
             </p>
 
             <!-- FILTROS (mismos nombres de parámetros GET) -->
-            <form method="GET" action="index.php" class="s-filtros" role="search" aria-label="Filtrar incidencias">
+            <form method="GET" action="index.php#resultados" class="s-filtros" role="search" aria-label="Filtrar incidencias">
                 <?php if ($ver_archivados): ?><input type="hidden" name="archivados" value="1"><?php endif; ?>
 
                 <div class="s-filtro s-filtro-buscar">
@@ -777,7 +777,7 @@ if (isset($_GET["asignado"])) {
             </form>
 
             <!-- RESUMEN DE RESULTADOS Y FILTROS ACTIVOS -->
-            <div class="s-resultados" aria-live="polite">
+            <div id="resultados" class="s-resultados" aria-live="polite">
                 <span class="s-resultados-total">
                     <i class="fa-solid fa-list" aria-hidden="true"></i>
                     Mostrando <strong><?= $cantidad_resultados ?></strong> incidencia(s)
