@@ -98,6 +98,10 @@
     --s-estado-resuelta-fondo: #E8F6EE;
     --s-estado-resuelta-texto: #166534;
 
+    --s-estado-cerrado: #6D28D9;
+    --s-estado-cerrado-fondo: #F1ECFD;
+    --s-estado-cerrado-texto: #5B21B6;
+
     --s-estado-archivado: #8A94A3;
     --s-estado-archivado-fondo: #EEF1F4;
     --s-estado-archivado-texto: #475467;
@@ -385,6 +389,7 @@
 .s-insignia-pendiente { background: var(--s-estado-pendiente-fondo); color: var(--s-estado-pendiente-texto); }
 .s-insignia-proceso   { background: var(--s-estado-proceso-fondo);   color: var(--s-estado-proceso-texto); }
 .s-insignia-resuelta  { background: var(--s-estado-resuelta-fondo);  color: var(--s-estado-resuelta-texto); }
+.s-insignia-cerrado   { background: var(--s-estado-cerrado-fondo);   color: var(--s-estado-cerrado-texto); }
 .s-insignia-archivado { background: var(--s-estado-archivado-fondo); color: var(--s-estado-archivado-texto); }
 
 .s-insignia-baja  { background: var(--s-prioridad-baja-fondo);  color: var(--s-prioridad-baja-texto); }

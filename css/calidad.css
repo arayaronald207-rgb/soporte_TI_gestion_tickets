@@ -184,7 +184,7 @@
 
 .s-progreso {
     display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: repeat(4, minmax(0, 1fr));
     gap: var(--s-esp-2);
     margin: var(--s-esp-4) 0;
     padding: 0;

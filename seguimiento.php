@@ -13,6 +13,7 @@ require_once __DIR__ . '/config/conexion.php';
 require_once __DIR__ . '/config/autorizacion.php';
 require_once __DIR__ . '/config/historial.php';
 require_once __DIR__ . '/config/encuestas.php';
+require_once __DIR__ . '/config/estados.php';
 
 $usuario_actual = usuarioAutenticado($conn, 'login.php', false);
 
@@ -34,7 +35,7 @@ $ticketAutorizado = static function (int $id) use ($conn, $autorizados): ?array 
         return null;
     }
     $stmt = $conn->prepare('SELECT id, titulo, categoria, prioridad, estado, laboratorio, equipo, tecnico_id,
-        archivado, UNIX_TIMESTAMP(fecha_registro) AS registro_epoch, fecha_resolucion, codigo_seguimiento_hash
+        archivado, UNIX_TIMESTAMP(fecha_registro) AS registro_epoch, fecha_resolucion, fecha_cierre, codigo_seguimiento_hash
         FROM incidencias WHERE id = ?');
     $stmt->bind_param('i', $id);
     $stmt->execute();
@@ -118,10 +119,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $stmt->execute();
                 $estado_actual = $stmt->get_result()->fetch_assoc()['estado'] ?? null;
                 $stmt->close();
-                if ($estado_actual !== 'Resuelta') {
+                // Resuelta o Cerrado: cerrar el ticket no impide calificar la atención.
+                if (!estadoResuelto($estado_actual)) {
                     $conn->rollback();
                     http_response_code(409);
-                    $error = 'La encuesta solo está disponible cuando el ticket está resuelto.';
+                    $error = 'La encuesta solo está disponible cuando el ticket está resuelto o cerrado.';
                 } elseif (encuestaDeIncidencia($conn, $id) !== null) {
                     $conn->rollback();
                     http_response_code(409);
@@ -204,7 +206,7 @@ require __DIR__ . '/includes/cabecera_publica.php';
         <div>
             <span class="topbar-etiqueta">Centro de soporte</span>
             <h1>Consultar mi ticket</h1>
-            <p>Revisa el avance de tu incidencia y califica la atención cuando esté resuelta.</p>
+            <p>Revisa el avance de tu incidencia y califica la atención cuando esté resuelta o cerrada.</p>
         </div>
         <?php if ($ticket !== null): ?>
             <a href="seguimiento.php" class="btn-limpiar">
@@ -272,11 +274,10 @@ require __DIR__ . '/includes/cabecera_publica.php';
 
         <?php
         $numero_ticket = '#' . str_pad((string) (int) $ticket['id'], 4, '0', STR_PAD_LEFT);
-        $pasos = ['Pendiente' => 1, 'En proceso' => 2, 'Resuelta' => 3];
+        $pasos = ['Pendiente' => 1, 'En proceso' => 2, 'Resuelta' => 3, 'Cerrado' => 4];
+        $paso_final = max($pasos);
         $paso_actual = $pasos[$ticket['estado']] ?? 1;
-        $tono_estado = match ($ticket['estado']) {
-            'Resuelta' => 'resuelta', 'En proceso' => 'proceso', default => 'pendiente'
-        };
+        $tono_estado = tonoEstado($ticket['estado']);
         ?>
 
         <?php if (isset($_GET['encuesta']) && $encuesta !== null): ?>
@@ -300,11 +301,11 @@ require __DIR__ . '/includes/cabecera_publica.php';
                     </div>
 
                     <ol class="s-progreso" aria-label="Avance del ticket">
-                        <?php foreach (['Pendiente' => 'Registrado', 'En proceso' => 'En atención', 'Resuelta' => 'Resuelto'] as $estado_paso => $texto_paso): ?>
+                        <?php foreach (['Pendiente' => 'Registrado', 'En proceso' => 'En atención', 'Resuelta' => 'Resuelto', 'Cerrado' => 'Cerrado'] as $estado_paso => $texto_paso): ?>
                             <?php $n = $pasos[$estado_paso]; ?>
                             <li class="s-progreso-paso<?= $n < $paso_actual ? ' s-completado' : '' ?><?= $n === $paso_actual ? ' s-actual' : '' ?>"
                                 <?= $n === $paso_actual ? 'aria-current="step"' : '' ?>>
-                                <span class="s-progreso-punto" aria-hidden="true"><?= $n < $paso_actual || ($n === 3 && $paso_actual === 3) ? '<i class="fa-solid fa-check"></i>' : $n ?></span>
+                                <span class="s-progreso-punto" aria-hidden="true"><?= $n < $paso_actual || ($n === $paso_final && $paso_actual === $paso_final) ? '<i class="fa-solid fa-check"></i>' : $n ?></span>
                                 <span><?= $texto_paso ?></span>
                             </li>
                         <?php endforeach; ?>
@@ -337,7 +338,7 @@ require __DIR__ . '/includes/cabecera_publica.php';
                             <?php endif; ?>
                             <small>Respondida el <?= escapar(fechaHistorialLocal($encuesta['fecha'])) ?> (Costa Rica). ¡Gracias!</small>
                         </div>
-                    <?php elseif ($ticket['estado'] !== 'Resuelta'): ?>
+                    <?php elseif (!estadoResuelto($ticket['estado'])): ?>
                         <div class="s-aviso s-aviso-info">
                             <i class="fa-solid fa-hourglass-half" aria-hidden="true"></i>
                             <div>La encuesta estará disponible cuando el personal de soporte marque tu ticket como resuelto.</div>
@@ -396,8 +397,11 @@ require __DIR__ . '/includes/cabecera_publica.php';
                         ? escapar((new DateTimeImmutable('@' . (int) $ticket['registro_epoch']))
                             ->setTimezone(new DateTimeZone('America/Costa_Rica'))->format('d/m/Y H:i'))
                         : 'Sin dato' ?></dd></div>
-                    <?php if ($ticket['estado'] === 'Resuelta' && $ticket['fecha_resolucion'] !== null): ?>
+                    <?php if (estadoResuelto($ticket['estado']) && $ticket['fecha_resolucion'] !== null): ?>
                         <div><dt>Resuelto</dt><dd><?= escapar(fechaHistorialLocal($ticket['fecha_resolucion'])) ?></dd></div>
+                    <?php endif; ?>
+                    <?php if ($ticket['estado'] === 'Cerrado' && $ticket['fecha_cierre'] !== null): ?>
+                        <div><dt>Cerrado</dt><dd><?= escapar(fechaHistorialLocal($ticket['fecha_cierre'])) ?></dd></div>
                     <?php endif; ?>
                 </dl>
             </aside>

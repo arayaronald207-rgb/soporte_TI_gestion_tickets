@@ -22,6 +22,7 @@ function escapar($valor) {
 // ESTADÍSTICAS GENERALES
 // =====================================
 
+require_once __DIR__ . '/../config/estados.php';
 require_once __DIR__ . '/../config/metricas.php';
 $metricas = metricasIncidencias($conn, $usuario_actual);
 // Funciones adicionales: acuerdos de nivel de servicio y satisfaccion del solicitante.
@@ -33,6 +34,7 @@ $total = $metricas['activos'];
 $pendientes = $metricas['estados']['Pendiente'];
 $en_proceso = $metricas['estados']['En proceso'];
 $resueltas = $metricas['estados']['Resuelta'];
+$cerrados = $metricas['estados']['Cerrado'];
 $baja = $metricas['prioridades']['Baja'];
 $media = $metricas['prioridades']['Media'];
 $alta = $metricas['prioridades']['Alta'];
@@ -50,7 +52,7 @@ if ($estado === "actualizado") {
 
 $prioridad = $_GET["prioridad"] ?? "";
 
-$estados_validos = ["Pendiente", "En proceso", "Resuelta"];
+$estados_validos = ESTADOS_TICKET;
 $prioridades_validas = ["Baja", "Media", "Alta"];
 $categorias_validas = ["hardware" => "Hardware", "software" => "Software", "red" => "Red"];
 $categoria_filtro = $_GET["categoria"] ?? "";
@@ -278,7 +280,7 @@ if (isset($_GET["asignado"])) {
             </div>
 
             <p class="s-seccion-descripcion">
-                «Activos» significa sin archivar, incluidos los resueltos.
+                «Activos» significa sin archivar, incluidos los resueltos y los cerrados.
                 <?= $es_admin ? 'Estadísticas generales del sistema.' : 'Estadísticas exclusivamente de los tickets actualmente asignados a tu cuenta.' ?>
             </p>
 
@@ -318,17 +320,22 @@ if (isset($_GET["asignado"])) {
                     </div>
                     <?php if ($metricas['promedio_segundos'] === null): ?>
                         <strong class="s-kpi-valor s-kpi-valor-texto">Sin datos suficientes</strong>
+                    <?php elseif ($metricas['promedio_segundos'] > 48 * 3600): ?>
+                        <?php // Más de 48 horas: se expresa en días para que sea legible (p. ej. «19,7 días»). ?>
+                        <strong class="s-kpi-valor" title="<?= escapar(number_format($metricas['promedio_segundos'] / 3600, 2, ',', '.')) ?> horas"><?= escapar(number_format($metricas['promedio_segundos'] / 86400, 1, ',', '.')) ?><small class="s-kpi-unidad">días</small></strong>
                     <?php else: ?>
                         <strong class="s-kpi-valor"><?= escapar(number_format($metricas['promedio_segundos'] / 3600, 2, ',', '.')) ?><small class="s-kpi-unidad">h</small></strong>
                     <?php endif; ?>
-                    <span class="s-kpi-nota"><?= $metricas['muestras_resolucion'] ?> ticket(s) resueltos activos con fechas válidas</span>
+                    <span class="s-kpi-nota"><?= $metricas['muestras_resolucion'] ?> ticket(s) resueltos o cerrados activos con fechas válidas</span>
                 </article>
 
-                <!-- Indicadores por estado -->
+                <!-- Indicadores por estado (rejilla propia: cuatro estados + archivados) -->
+                <div class="s-kpis-ciclo">
                 <?php foreach ([
                     ['pendiente', 'fa-hourglass-half', 'Pendientes', $pendientes, 'Esperando atención'],
                     ['proceso', 'fa-screwdriver-wrench', 'En proceso', $en_proceso, 'Actualmente en atención'],
-                    ['resuelta', 'fa-circle-check', 'Resueltas', $resueltas, 'Incidencias solucionadas'],
+                    ['resuelta', 'fa-circle-check', 'Resueltas', $resueltas, 'Solucionadas, pendientes de cierre'],
+                    ['cerrado', 'fa-lock', 'Cerrados', $cerrados, 'Casos finalizados'],
                 ] as [$clase_kpi, $icono_kpi, $etiqueta_kpi, $valor_kpi, $nota_kpi]): ?>
                     <article class="s-kpi s-kpi-estado s-kpi-<?= $clase_kpi ?>">
                         <div class="s-kpi-cabecera">
@@ -350,6 +357,7 @@ if (isset($_GET["asignado"])) {
                     <span class="s-kpi-barra s-kpi-barra-vacia" aria-hidden="true"></span>
                     <span class="s-kpi-nota">Excluidos de los demás indicadores</span>
                 </article>
+                </div>
 
             </div>
 
@@ -359,7 +367,7 @@ if (isset($_GET["asignado"])) {
                     ¿Cómo se calculan estos indicadores?
                 </summary>
                 <ul>
-                    <li>El promedio va desde el registro hasta la resolución vigente. Excluye fechas desconocidas, anteriores al registro o futuras. Una reapertura descarta la resolución anterior del promedio.</li>
+                    <li>El promedio va desde el registro hasta la resolución vigente e incluye los tickets resueltos y los cerrados (cerrar conserva la fecha de resolución). Excluye fechas desconocidas, anteriores al registro o futuras. Una reapertura descarta la resolución anterior del promedio. Si supera las 48 horas se muestra en días.</li>
                     <li>«Sin técnico de resolución registrado» incluye resoluciones del administrador y registros antiguos sin autor técnico conocido.</li>
                     <li>Las tablas de cada gráfico permiten consultar los valores aunque no carguen los gráficos.</li>
                     <li>Los filtros del listado no modifican estos indicadores: siempre resumen todos los tickets permitidos de tu cuenta.</li>
@@ -457,7 +465,7 @@ if (isset($_GET["asignado"])) {
                     <?php else: ?>
                         <strong class="s-kpi-valor"><?= escapar(number_format($metricas_encuestas['tasa_respuesta'], 1, ',', '.')) ?><small class="s-kpi-unidad">%</small></strong>
                     <?php endif; ?>
-                    <span class="s-kpi-nota">Encuestas respondidas sobre tickets resueltos con código de seguimiento</span>
+                    <span class="s-kpi-nota">Encuestas respondidas sobre tickets resueltos o cerrados con código de seguimiento</span>
                 </article>
 
                 <article class="s-kpi s-kpi-principal s-kpi-distribucion">
@@ -503,8 +511,8 @@ if (isset($_GET["asignado"])) {
                 </summary>
                 <ul>
                     <li>El plazo del SLA corre desde el registro del ticket y depende de su prioridad. «Por vencer» indica que ya se consumió el <?= (int) (SLA_FRACCION_AVISO * 100) ?> % del plazo.</li>
-                    <li>El cumplimiento considera los tickets activos resueltos con fecha de resolución conocida.</li>
-                    <li>Las encuestas las responde el solicitante desde «Consultar mi ticket», una sola vez por ticket y solo cuando está resuelto. Incluyen tickets archivados.</li>
+                    <li>El cumplimiento considera los tickets activos resueltos o cerrados con fecha de resolución conocida.</li>
+                    <li>Las encuestas las responde el solicitante desde «Consultar mi ticket», una sola vez por ticket y solo cuando está resuelto o cerrado. Incluyen tickets archivados.</li>
                     <li>La satisfacción por técnico se atribuye a quien resolvió el ticket, no al responsable actual.</li>
                 </ul>
             </details>
@@ -575,7 +583,7 @@ if (isset($_GET["asignado"])) {
                 </article>
 
                 <?php foreach (['asignados_por_tecnico' => ['graficoAsignados', 'Tickets asignados por técnico', 'Responsable actual; incluye todos los estados activos.', 'fa-user-gear'],
-                    'resueltos_por_tecnico' => ['graficoResueltos', 'Tickets resueltos por técnico', 'Autor real de la resolución, no el responsable actual. Solo resueltos activos.', 'fa-user-check']] as $clave => $grafico): ?>
+                    'resueltos_por_tecnico' => ['graficoResueltos', 'Tickets resueltos por técnico', 'Autor real de la resolución, no el responsable actual. Resueltos y cerrados activos.', 'fa-user-check']] as $clave => $grafico): ?>
                     <article class="s-grafico s-grafico-tecnicos">
                         <header class="s-grafico-cabecera">
                             <span class="s-grafico-icono"><i class="fa-solid <?= $grafico[3] ?>" aria-hidden="true"></i></span>
@@ -837,11 +845,7 @@ if (isset($_GET["asignado"])) {
                                 default => "baja"
                             };
 
-                            $tono_estado = match ($fila["estado"]) {
-                                "Resuelta" => "resuelta",
-                                "En proceso" => "proceso",
-                                default => "pendiente"
-                            };
+                            $tono_estado = tonoEstado($fila["estado"]);
 
                             $clave_categoria = isset($categorias_validas[$fila["categoria"] ?? ""]) ? $fila["categoria"] : "";
                             $numero_ticket = "#" . str_pad($fila["id"], 4, "0", STR_PAD_LEFT);
@@ -980,7 +984,8 @@ document.addEventListener("DOMContentLoaded", function () {
     const estados = [
         <?= $pendientes ?>,
         <?= $en_proceso ?>,
-        <?= $resueltas ?>
+        <?= $resueltas ?>,
+        <?= $cerrados ?>
     ];
 
     const prioridades = [
@@ -997,6 +1002,7 @@ document.addEventListener("DOMContentLoaded", function () {
         pendiente: colorTema('--s-estado-pendiente', '#F2A33A'),
         proceso: colorTema('--s-estado-proceso', '#2563EB'),
         resuelta: colorTema('--s-estado-resuelta', '#16A34A'),
+        cerrado: colorTema('--s-estado-cerrado', '#6D28D9'),
         baja: colorTema('--s-prioridad-baja', '#8A94A3'),
         media: colorTema('--s-prioridad-media', '#F2A33A'),
         alta: colorTema('--s-prioridad-alta', '#DC2626'),
@@ -1028,14 +1034,15 @@ document.addEventListener("DOMContentLoaded", function () {
             type: "doughnut",
 
             data: {
-                labels: ["Pendientes", "En proceso", "Resueltas"],
+                labels: ["Pendientes", "En proceso", "Resueltas", "Cerrados"],
 
                 datasets: [{
                     data: estados,
                     backgroundColor: [
                         colores.pendiente,
                         colores.proceso,
-                        colores.resuelta
+                        colores.resuelta,
+                        colores.cerrado
                     ],
                     borderColor: colores.superficie,
                     borderWidth: 2,

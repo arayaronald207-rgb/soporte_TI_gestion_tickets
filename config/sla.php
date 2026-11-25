@@ -1,5 +1,7 @@
 <?php
 
+require_once __DIR__ . '/estados.php';
+
 /*
  * Acuerdos de nivel de servicio (SLA): plazo maximo de resolucion por prioridad.
  *
@@ -7,7 +9,8 @@
  *   - "A tiempo"   si aun no consume el 75 % del plazo;
  *   - "Por vencer" si consumio el 75 % o mas, sin superar el plazo;
  *   - "Vencido"    si supero el plazo y sigue sin resolverse.
- * Un ticket Resuelta "Cumplio" o "Incumplio" segun su fecha_resolucion.
+ * Un ticket Resuelta o Cerrado "Cumplio" o "Incumplio" segun su fecha_resolucion
+ * (cerrar conserva la resolucion vigente).
  *
  * Calculo independiente de la zona horaria de la conexion:
  *   UNIX_TIMESTAMP(fecha_registro) devuelve el instante real de un TIMESTAMP,
@@ -62,7 +65,7 @@ function evaluarSla(string $prioridad, string $estado, ?int $registro_epoch,
     }
     $limite_epoch = $registro_epoch + $limite;
 
-    if ($estado === 'Resuelta') {
+    if (estadoResuelto($estado)) {
         $resuelto = null;
         if ($fecha_resolucion !== null) {
             try {
@@ -113,9 +116,9 @@ function slaCondicionSql(string $clave): ?string
     $transcurrido = '(UNIX_TIMESTAMP() - UNIX_TIMESTAMP(i.fecha_registro))';
     $aviso = sprintf('%s * %.2F', $limite, SLA_FRACCION_AVISO);
     return match ($clave) {
-        'vencido' => "i.estado <> 'Resuelta' AND $transcurrido > $limite",
-        'por_vencer' => "i.estado <> 'Resuelta' AND $transcurrido >= $aviso AND $transcurrido <= $limite",
-        'a_tiempo' => "i.estado <> 'Resuelta' AND $transcurrido < $aviso",
+        'vencido' => "i.estado NOT IN ('Resuelta', 'Cerrado') AND $transcurrido > $limite",
+        'por_vencer' => "i.estado NOT IN ('Resuelta', 'Cerrado') AND $transcurrido >= $aviso AND $transcurrido <= $limite",
+        'a_tiempo' => "i.estado NOT IN ('Resuelta', 'Cerrado') AND $transcurrido < $aviso",
         default => null,
     };
 }

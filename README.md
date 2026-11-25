@@ -8,17 +8,17 @@ Aplicación web tipo *Help Desk* para registrar, asignar, atender y dar seguimie
 
 - Creación de tickets con título, descripción, categoría (Hardware, Software, Red) y prioridad (Baja, Media, Alta).
 - Asignación y reasignación de tickets a técnicos (administrador).
-- Ciclo de vida: Pendiente → En proceso → Resuelta, con reapertura.
+- Ciclo de vida: Pendiente → En proceso → Resuelta → Cerrado. Solo se cierra un ticket resuelto (técnico asignado o administrador); Cerrado es el estado final y solo el administrador puede reabrirlo.
 - Historial auditable y comentarios de seguimiento por ticket.
 - Archivado y restauración de tickets (no se borran).
-- Listado con filtros por estado, prioridad, categoría, técnico, SLA y búsqueda de texto.
+- Listado con filtros por estado (incluido Cerrado), prioridad, categoría, técnico, SLA y búsqueda de texto.
 - Gestión de usuarios (administrador).
 
 **Funciones adicionales**
 
-- **Dashboard de métricas:** tickets activos, sin asignar, por estado, prioridad, categoría y técnico, y tiempo promedio de resolución.
+- **Dashboard de métricas:** tickets activos, sin asignar, por estado, prioridad, categoría y técnico, y tiempo promedio de resolución (en días cuando supera 48 h). Los tickets cerrados conservan su fecha de resolución y cuentan en el promedio y en el SLA.
 - **Acuerdos de nivel de servicio (SLA):** plazos por prioridad (Alta 4 h, Media 24 h, Baja 72 h) con alerta visual *A tiempo / Por vencer / Vencido*.
-- **Encuestas de satisfacción:** el solicitante consulta su ticket con un código de seguimiento y califica la atención (1 a 5 estrellas) cuando está resuelto.
+- **Encuestas de satisfacción:** el solicitante consulta su ticket con un código de seguimiento y califica la atención (1 a 5 estrellas) cuando está resuelto o cerrado.
 
 ## Roles
 
@@ -42,6 +42,7 @@ PHP 8.2 (mysqli), MariaDB 10.4 / MySQL, Apache 2.4 (XAMPP), HTML5, CSS3, JavaScr
    mysql -u root gestion_incidencias < C:\xampp\htdocs\gestion_incidencias\gestion_incidencias.sql
    mysql -u root gestion_incidencias < C:\xampp\htdocs\gestion_incidencias\migracion_gestion_tickets.sql
    mysql -u root gestion_incidencias < C:\xampp\htdocs\gestion_incidencias\migracion_sla_encuestas.sql
+   mysql -u root gestion_incidencias < C:\xampp\htdocs\gestion_incidencias\migracion_estado_cerrado.sql
    ```
 
 3. Crear una cuenta de base de datos con privilegios mínimos para la aplicación (comandos completos en el Manual Técnico, paso 5).

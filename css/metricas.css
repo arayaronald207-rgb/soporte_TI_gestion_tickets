@@ -80,6 +80,16 @@
 .s-kpi-principal { grid-column: span 4; }
 .s-kpi-estado    { grid-column: span 3; }
 
+/* Indicadores del ciclo de vida: cinco tarjetas en una rejilla propia */
+.s-kpis-ciclo {
+    grid-column: 1 / -1;
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: var(--s-esp-4);
+}
+
+.s-kpis-ciclo .s-kpi-estado { grid-column: auto; }
+
 
 /* --------------------------------------------------------------------------
    3. TARJETA DE INDICADOR (amplía .s-kpi de tema.css)
@@ -202,12 +212,14 @@
 .s-kpi-pendiente   { --kpi-color: var(--s-estado-pendiente); --kpi-fondo: var(--s-estado-pendiente-fondo); }
 .s-kpi-proceso     { --kpi-color: var(--s-estado-proceso);   --kpi-fondo: var(--s-estado-proceso-fondo); }
 .s-kpi-resuelta    { --kpi-color: var(--s-estado-resuelta);  --kpi-fondo: var(--s-estado-resuelta-fondo); }
+.s-kpi-cerrado     { --kpi-color: var(--s-estado-cerrado);   --kpi-fondo: var(--s-estado-cerrado-fondo); }
 .s-kpi-archivado   { --kpi-color: var(--s-estado-archivado-texto); --kpi-fondo: var(--s-estado-archivado-fondo); }
 
 /* Icono de los estados con tono de texto accesible */
 .s-kpi-pendiente .s-kpi-icono { color: var(--s-estado-pendiente-texto); }
 .s-kpi-proceso   .s-kpi-icono { color: var(--s-estado-proceso-texto); }
 .s-kpi-resuelta  .s-kpi-icono { color: var(--s-estado-resuelta-texto); }
+.s-kpi-cerrado   .s-kpi-icono { color: var(--s-estado-cerrado-texto); }
 
 /* Indicador protagonista: tickets activos sobre grafito con puntos */
 .s-kpis .s-kpi-destacado {
@@ -483,6 +495,7 @@
 /* Tableta y portátiles pequeños */
 @media (max-width: 1200px) {
     .s-kpi-estado { grid-column: span 6; }
+    .s-kpis-ciclo { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 
     .s-grafico-estado,
     .s-grafico-prioridad { grid-column: span 6; }
@@ -498,9 +511,11 @@
 /* Móvil */
 @media (max-width: 760px) {
     .s-kpis,
+    .s-kpis-ciclo,
     .s-graficos-rejilla { gap: var(--s-esp-3); }
 
     .s-kpi-estado { grid-column: span 6; }
+    .s-kpis-ciclo { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 
     .s-grafico-estado,
     .s-grafico-prioridad,

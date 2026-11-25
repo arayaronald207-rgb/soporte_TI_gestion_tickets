@@ -1,5 +1,7 @@
 <?php
 
+require_once __DIR__ . '/estados.php';
+
 // Solo recibe la cuenta validada en servidor. Los filtros GET no cambian el alcance.
 function metricasIncidencias(mysqli $conn, array $usuario): array
 {
@@ -8,19 +10,19 @@ function metricasIncidencias(mysqli $conn, array $usuario): array
     // fecha_registro es TIMESTAMP; fecha_resolucion es DATETIME almacenado en UTC.
     $conn->query("SET SESSION time_zone = '+00:00'");
     $datos = ['activos' => 0, 'archivados' => 0, 'sin_asignar' => 0,
-        'estados' => ['Pendiente' => 0, 'En proceso' => 0, 'Resuelta' => 0],
+        'estados' => ['Pendiente' => 0, 'En proceso' => 0, 'Resuelta' => 0, 'Cerrado' => 0],
         'prioridades' => ['Baja' => 0, 'Media' => 0, 'Alta' => 0],
         'categorias' => ['hardware' => 0, 'software' => 0, 'red' => 0, 'sin_categoria' => 0],
         'muestras_resolucion' => 0, 'promedio_segundos' => null,
         'asignados_por_tecnico' => [], 'resueltos_por_tecnico' => []];
     $stmt = $conn->prepare("SELECT archivado, estado, prioridad, categoria, COUNT(*) AS cantidad,
         SUM(tecnico_id IS NULL) AS sin_asignar,
-        COUNT(CASE WHEN estado = 'Resuelta' AND fecha_registro >= '1970-01-01 00:00:01'
+        COUNT(CASE WHEN estado IN ('Resuelta', 'Cerrado') AND fecha_registro >= '1970-01-01 00:00:01'
             AND fecha_resolucion >= fecha_registro AND fecha_resolucion <= UTC_TIMESTAMP()
             AND DAY(fecha_resolucion) BETWEEN 1 AND DAY(LAST_DAY(fecha_resolucion))
             AND TIMESTAMPDIFF(SECOND, fecha_registro, fecha_resolucion) IS NOT NULL
             THEN 1 END) AS muestras,
-        SUM(CASE WHEN estado = 'Resuelta' AND fecha_registro >= '1970-01-01 00:00:01'
+        SUM(CASE WHEN estado IN ('Resuelta', 'Cerrado') AND fecha_registro >= '1970-01-01 00:00:01'
             AND fecha_resolucion >= fecha_registro AND fecha_resolucion <= UTC_TIMESTAMP()
             AND DAY(fecha_resolucion) BETWEEN 1 AND DAY(LAST_DAY(fecha_resolucion))
             AND TIMESTAMPDIFF(SECOND, fecha_registro, fecha_resolucion) IS NOT NULL
@@ -49,10 +51,11 @@ function metricasIncidencias(mysqli $conn, array $usuario): array
     if ($datos['muestras_resolucion'] > 0) {
         $datos['promedio_segundos'] = $segundos / $datos['muestras_resolucion'];
     }
+    // Resuelta y Cerrado conservan la resolucion vigente: ambos cuentan en promedio y autoria.
     // Dos agrupaciones distintas: responsable actual y autor real de resolucion.
     // No filtrar por rol actual: una cuenta puede haber cambiado de rol o actividad.
     foreach (['asignados_por_tecnico' => 'tecnico_id', 'resueltos_por_tecnico' => 'tecnico_resolucion_id'] as $clave => $columna) {
-        $condicion = $clave === 'resueltos_por_tecnico' ? " AND i.estado = 'Resuelta'" : '';
+        $condicion = $clave === 'resueltos_por_tecnico' ? " AND i.estado IN ('Resuelta', 'Cerrado')" : '';
         // Los identificadores SQL proceden exclusivamente de la lista fija anterior.
         $stmt = $conn->prepare("SELECT u.id, u.usuario, COUNT(*) AS cantidad
             FROM incidencias i LEFT JOIN usuarios u ON u.id = i.$columna

@@ -5,6 +5,7 @@ require_once __DIR__ . '/../config/autorizacion.php';
 require_once __DIR__ . '/../config/historial.php';
 require_once __DIR__ . '/../config/sla.php';
 require_once __DIR__ . '/../config/encuestas.php';
+require_once __DIR__ . '/../config/estados.php';
 $usuario_actual = usuarioAutenticado($conn, '../login.php');
 $id = filter_input(INPUT_GET, 'id', FILTER_VALIDATE_INT);
 if (!$id || $id <= 0) {
@@ -148,6 +149,7 @@ $categorias = ['hardware' => 'Hardware', 'software' => 'Software', 'red' => 'Red
             'Pendiente' => 'pendiente',
             'En proceso' => 'proceso',
             'Resuelta' => 'resuelta',
+            'Cerrado' => 'cerrado',
             default => 'archivado'
         };
         $tono_prioridad = match ($incidencia['prioridad']) {
@@ -384,6 +386,12 @@ $categorias = ['hardware' => 'Hardware', 'software' => 'Software', 'red' => 'Red
                         'Estado' => $incidencia['estado'], 'Técnico' => $responsable] as $etiqueta => $valor): ?>
                         <div><dt><?= escapar($etiqueta) ?></dt><dd><?= escapar($valor) ?></dd></div>
                     <?php endforeach; ?>
+                    <?php if ($incidencia['fecha_resolucion'] !== null && estadoResuelto($incidencia['estado'])): ?>
+                        <div><dt>Resuelto</dt><dd><?= escapar(fechaHistorialLocal($incidencia['fecha_resolucion'])) ?></dd></div>
+                    <?php endif; ?>
+                    <?php if ($incidencia['estado'] === 'Cerrado' && $incidencia['fecha_cierre'] !== null): ?>
+                        <div><dt>Cerrado</dt><dd><?= escapar(fechaHistorialLocal($incidencia['fecha_cierre'])) ?></dd></div>
+                    <?php endif; ?>
                 </dl>
 
                 <!-- ACUERDO DE NIVEL DE SERVICIO -->
@@ -415,10 +423,10 @@ $categorias = ['hardware' => 'Hardware', 'software' => 'Software', 'red' => 'Red
                             <?php endif; ?>
                             <small>Respondida el <?= escapar(fechaHistorialLocal($encuesta['fecha'])) ?></small>
                         </div>
-                    <?php elseif ($incidencia['estado'] === 'Resuelta'): ?>
+                    <?php elseif (estadoResuelto($incidencia['estado'])): ?>
                         <p class="s-ficha-nota">Pendiente de respuesta del solicitante.</p>
                     <?php else: ?>
-                        <p class="s-ficha-nota">Disponible para el solicitante cuando el ticket esté resuelto.</p>
+                        <p class="s-ficha-nota">Disponible para el solicitante cuando el ticket esté resuelto o cerrado.</p>
                     <?php endif; ?>
                 </div>
 

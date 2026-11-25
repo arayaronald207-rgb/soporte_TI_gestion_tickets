@@ -3,6 +3,7 @@ require_once __DIR__ . "/../config/sesion.php";
 require_once __DIR__ . "/../config/conexion.php";
 require_once __DIR__ . "/../config/autorizacion.php";
 require_once __DIR__ . "/../config/historial.php";
+require_once __DIR__ . "/../config/estados.php";
 $usuario_actual = usuarioAutenticado($conn, "../login.php");
 
 // Crear token de seguridad para el formulario
@@ -23,11 +24,8 @@ $incidencia = incidenciaPermitida($conn, $id, $usuario_actual);
 
 $error = "";
 
-$estados_validos = [
-    "Pendiente",
-    "En proceso",
-    "Resuelta"
-];
+$estados_validos = ESTADOS_TICKET;
+$es_admin = $usuario_actual["rol"] === "admin";
 
 // Procesar el formulario
 if ($_SERVER["REQUEST_METHOD"] === "POST") {
@@ -51,43 +49,52 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
         try {
             $anterior = bloquearIncidenciaParaCambio($conn, $id);
-            // Actualizar estado
-            $stmt = $conn->prepare(
-                "UPDATE incidencias
-                 SET estado = ?
-                 WHERE id = ?"
-            );
+            // La regla se evalua con el estado y el rol leidos bajo bloqueo, no con el formulario.
+            $motivo = motivoTransicionNoPermitida($anterior['estado'], $estado, (string) $_SESSION['admin_rol']);
 
-            $stmt->bind_param("si", $estado, $id);
-
-            if ($stmt->execute()) {
+            if ($motivo !== null) {
+                $conn->rollback();
+                http_response_code(409);
+                $error = $motivo;
+                $incidencia = $anterior;
+            } else {
                 if ($anterior['estado'] !== $estado) {
-                    // Solo una transicion real genera datos nuevos de resolucion.
-                    if ($estado === 'Resuelta') {
+                    // Una sola sentencia: estado y fechas cambian juntos (chk_inc_cierre).
+                    if ($estado === 'Cerrado') {
+                        // Cerrar conserva la resolucion vigente (SLA y promedio la siguen contando).
+                        $stmt = $conn->prepare("UPDATE incidencias SET estado = 'Cerrado', fecha_cierre = UTC_TIMESTAMP() WHERE id = ?");
+                        $stmt->bind_param('i', $id);
+                    } elseif ($estado === 'Resuelta' && $anterior['estado'] === 'Cerrado') {
+                        // El administrador deshace el cierre: la resolucion original se mantiene.
+                        $stmt = $conn->prepare("UPDATE incidencias SET estado = 'Resuelta', fecha_cierre = NULL WHERE id = ?");
+                        $stmt->bind_param('i', $id);
+                    } elseif ($estado === 'Resuelta') {
+                        // Solo una transicion real genera datos nuevos de resolucion.
                         $resolutor = $_SESSION['admin_rol'] === 'tecnico' ? (int) $_SESSION['admin_id'] : null;
-                        $fechas = $conn->prepare('UPDATE incidencias SET fecha_resolucion = UTC_TIMESTAMP(), tecnico_resolucion_id = ? WHERE id = ?');
-                        $fechas->bind_param('ii', $resolutor, $id);
+                        $stmt = $conn->prepare("UPDATE incidencias SET estado = 'Resuelta', fecha_resolucion = UTC_TIMESTAMP(),
+                            tecnico_resolucion_id = ?, fecha_cierre = NULL WHERE id = ?");
+                        $stmt->bind_param('ii', $resolutor, $id);
                     } else {
-                        $fechas = $conn->prepare('UPDATE incidencias SET fecha_resolucion = NULL, tecnico_resolucion_id = NULL WHERE id = ?');
-                        $fechas->bind_param('i', $id);
+                        // Reabrir (Pendiente / En proceso) descarta resolucion y cierre vigentes.
+                        $stmt = $conn->prepare('UPDATE incidencias SET estado = ?, fecha_resolucion = NULL,
+                            tecnico_resolucion_id = NULL, fecha_cierre = NULL WHERE id = ?');
+                        $stmt->bind_param('si', $estado, $id);
                     }
-                    $fechas->execute();
-                    $fechas->close();
+                    $stmt->execute();
+                    $stmt->close();
+                    $detalle = match (true) {
+                        $estado === 'Cerrado' => 'Se cerró el ticket.',
+                        $anterior['estado'] === 'Cerrado' => 'Se reabrió el ticket cerrado.',
+                        default => 'Se cambió el estado del ticket.',
+                    };
                     registrarEventoIncidencia($conn, $id, (int) $_SESSION['admin_id'], 'cambio_estado',
-                        'Se cambió el estado del ticket.', $anterior['estado'], $estado);
+                        $detalle, $anterior['estado'], $estado);
                 }
                 $conn->commit();
-
-                $stmt->close();
 
                 header("Location: index.php?estado=actualizado");
                 exit;
             }
-
-            $error = "No se pudo actualizar el estado.";
-
-            $stmt->close();
-            $conn->rollback();
         } catch (mysqli_sql_exception $e) {
             $conn->rollback();
             error_log("Error al gestionar incidencia: " . $e->getMessage());
@@ -170,7 +177,12 @@ function escapar($valor) {
             "Pendiente" => ["pendiente", "fa-hourglass-half", "Registrado y a la espera de atención."],
             "En proceso" => ["proceso", "fa-screwdriver-wrench", "Un técnico está trabajando en la solución."],
             "Resuelta" => ["resuelta", "fa-circle-check", "El problema quedó solucionado."],
+            "Cerrado" => ["cerrado", "fa-lock", "Caso finalizado. Solo un administrador puede reabrirlo."],
         ];
+        $rol_actual = (string) $_SESSION["admin_rol"];
+        // Solo presentación: el servidor vuelve a validar la transición al guardar.
+        $bloqueado_cerrado = $incidencia["estado"] === "Cerrado" && !$es_admin;
+        $motivo_opcion = static fn(string $e): ?string => motivoTransicionNoPermitida($incidencia["estado"], $e, $rol_actual);
         ?>
         <div class="s-form-pagina">
 
@@ -196,6 +208,16 @@ function escapar($valor) {
                     </div>
                 <?php endif; ?>
 
+                <?php if ($bloqueado_cerrado): ?>
+                    <div class="s-aviso s-aviso-info" role="status">
+                        <i class="fa-solid fa-lock" aria-hidden="true"></i>
+                        <div>
+                            <strong>Ticket cerrado.</strong>
+                            Es el estado final del ciclo de vida. Si necesita reabrirse, solicítalo a un administrador.
+                        </div>
+                    </div>
+                <?php endif; ?>
+
                 <form method="POST" class="s-formulario">
 
                     <input type="hidden" name="csrf_token" value="<?= escapar($_SESSION["csrf_token"]) ?>">
@@ -205,13 +227,17 @@ function escapar($valor) {
 
                         <div class="s-opciones s-opciones-ciclo">
                             <?php foreach ($estados_validos as $e): ?>
-                                <?php [$tono_opcion, $icono_opcion, $texto_opcion] = $estados_presentacion[$e]; ?>
-                                <label class="s-opcion s-opcion-<?= $tono_opcion ?>">
+                                <?php
+                                [$tono_opcion, $icono_opcion, $texto_opcion] = $estados_presentacion[$e];
+                                $no_disponible = $motivo_opcion($e);
+                                ?>
+                                <label class="s-opcion s-opcion-<?= $tono_opcion ?><?= $no_disponible !== null ? ' s-opcion-deshabilitada' : '' ?>">
                                     <input
                                         type="radio"
                                         name="estado"
                                         value="<?= escapar($e) ?>"
                                         <?= $incidencia["estado"] === $e ? "checked" : "" ?>
+                                        <?= $no_disponible !== null ? "disabled" : "" ?>
                                         required
                                     >
                                     <span class="s-opcion-cuerpo">
@@ -219,6 +245,9 @@ function escapar($valor) {
                                         <span class="s-opcion-texto">
                                             <strong><?= escapar($e) ?></strong>
                                             <small><?= escapar($texto_opcion) ?></small>
+                                            <?php if ($no_disponible !== null && !$bloqueado_cerrado): ?>
+                                                <small class="s-opcion-motivo"><i class="fa-solid fa-ban" aria-hidden="true"></i> <?= escapar($e === "Cerrado" ? "Disponible cuando el ticket esté en Resuelta." : $no_disponible) ?></small>
+                                            <?php endif; ?>
                                         </span>
                                         <?php if ($incidencia["estado"] === $e): ?>
                                             <span class="s-opcion-actual">Actual</span>
@@ -231,13 +260,13 @@ function escapar($valor) {
 
                     <p class="s-ayuda s-form-nota">
                         <i class="fa-solid fa-circle-info" aria-hidden="true"></i>
-                        Al marcar «Resuelta» se registra la fecha de resolución; si el ticket se reabre, esa resolución deja de contar en el promedio.
+                        Al marcar «Resuelta» se registra la fecha de resolución. «Cerrado» solo se puede elegir desde «Resuelta»: registra la fecha de cierre y conserva la resolución para el SLA y el promedio. Si el ticket se reabre a Pendiente o En proceso, su resolución deja de contar.
                     </p>
 
                     <!-- BOTONES -->
                     <div class="s-form-acciones">
                         <a href="index.php" class="s-btn s-btn-secundario">Cancelar</a>
-                        <button type="submit" class="s-btn s-btn-primario">
+                        <button type="submit" class="s-btn s-btn-primario"<?= $bloqueado_cerrado ? " disabled" : "" ?>>
                             <i class="fa-solid fa-floppy-disk" aria-hidden="true"></i>
                             Guardar estado
                         </button>

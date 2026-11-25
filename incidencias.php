@@ -6,6 +6,7 @@ require_once __DIR__ . "/config/conexion.php";
 
 // Comprobar si existe una sesión iniciada
 require_once __DIR__ . "/config/autorizacion.php";
+require_once __DIR__ . "/config/estados.php";
 $usuario_actual = usuarioAutenticado($conn, "login.php");
 $sesion_iniciada = true;
 $es_admin = (int) ($usuario_actual["rol"] === "admin");
@@ -17,7 +18,7 @@ $laboratorio = trim($_GET["laboratorio"] ?? "");
 $estado = $_GET["estado"] ?? "";
 $prioridad = $_GET["prioridad"] ?? "";
 
-$estados_validos = ["Pendiente", "En proceso", "Resuelta"];
+$estados_validos = ESTADOS_TICKET;
 $prioridades_validas = ["Baja", "Media", "Alta"];
 $categorias_validas = ["hardware" => "Hardware", "software" => "Software", "red" => "Red"];
 
@@ -35,7 +36,8 @@ $sql_estadisticas = "
         COUNT(*) AS total,
         COALESCE(SUM(estado = 'Pendiente'), 0) AS pendientes,
         COALESCE(SUM(estado = 'En proceso'), 0) AS proceso,
-        COALESCE(SUM(estado = 'Resuelta'), 0) AS resueltas
+        COALESCE(SUM(estado = 'Resuelta'), 0) AS resueltas,
+        COALESCE(SUM(estado = 'Cerrado'), 0) AS cerrados
     FROM incidencias WHERE archivado = 0 AND (? = 1 OR tecnico_id = ?)
 ";
 
@@ -159,7 +161,7 @@ function escapar($texto) {
                 </span>
             </div>
 
-            <div class="s-kpis s-kpis-consulta">
+            <div class="s-kpis s-kpis-consulta s-kpis-ciclo">
                 <article class="s-kpi s-kpi-estado s-kpi-destacado">
                     <div class="s-kpi-cabecera">
                         <span class="s-kpi-icono"><i class="fa-solid fa-ticket" aria-hidden="true"></i></span>
@@ -173,6 +175,7 @@ function escapar($texto) {
                     ['pendiente', 'fa-hourglass-half', 'Pendientes', (int)$estadisticas["pendientes"], 'Esperando atención'],
                     ['proceso', 'fa-screwdriver-wrench', 'En proceso', (int)$estadisticas["proceso"], 'En atención técnica'],
                     ['resuelta', 'fa-circle-check', 'Resueltas', (int)$estadisticas["resueltas"], 'Problemas solucionados'],
+                    ['cerrado', 'fa-lock', 'Cerrados', (int)$estadisticas["cerrados"], 'Casos finalizados'],
                 ] as [$tono_kpi, $icono_kpi, $etiqueta_kpi, $valor_kpi, $nota_kpi]): ?>
                     <article class="s-kpi s-kpi-estado s-kpi-<?= $tono_kpi ?>">
                         <div class="s-kpi-cabecera">
@@ -286,11 +289,7 @@ function escapar($texto) {
                                 "Media" => "media",
                                 default => "baja"
                             };
-                            $tono_estado = match ($fila["estado"]) {
-                                "Resuelta" => "resuelta",
-                                "En proceso" => "proceso",
-                                default => "pendiente"
-                            };
+                            $tono_estado = tonoEstado($fila["estado"]);
                             $clave_categoria = isset($categorias_validas[$fila["categoria"] ?? ""]) ? $fila["categoria"] : "";
                             $iconos_categoria = ["hardware" => "fa-microchip", "software" => "fa-code", "red" => "fa-network-wired"];
                             $tecnico_usuario = $fila["tecnico_usuario"] ?? null;

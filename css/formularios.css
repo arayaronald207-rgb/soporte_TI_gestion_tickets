@@ -238,7 +238,7 @@
 }
 
 .s-opciones-ciclo {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 
 .s-opciones-tecnicos {
@@ -259,6 +259,7 @@
 .s-opcion-pendiente { --opcion-color: var(--s-estado-pendiente); --opcion-fondo: var(--s-estado-pendiente-fondo); }
 .s-opcion-proceso   { --opcion-color: var(--s-estado-proceso);   --opcion-fondo: var(--s-estado-proceso-fondo); }
 .s-opcion-resuelta  { --opcion-color: var(--s-estado-resuelta);  --opcion-fondo: var(--s-estado-resuelta-fondo); }
+.s-opcion-cerrado   { --opcion-color: var(--s-estado-cerrado);   --opcion-fondo: var(--s-estado-cerrado-fondo); }
 
 /* El radio se oculta visualmente pero sigue siendo accesible y validable */
 .s-app .s-opcion input[type="radio"] {
@@ -341,6 +342,19 @@
 .s-opcion-pendiente .s-opcion-icono { color: var(--s-estado-pendiente-texto); }
 .s-opcion-proceso   .s-opcion-icono { color: var(--s-estado-proceso-texto); }
 .s-opcion-resuelta  .s-opcion-icono { color: var(--s-estado-resuelta-texto); }
+.s-opcion-cerrado   .s-opcion-icono { color: var(--s-estado-cerrado-texto); }
+
+/* Transiciones no permitidas (el servidor las rechaza igualmente) */
+.s-app .s-opcion.s-opcion-deshabilitada { cursor: not-allowed; }
+.s-opcion-deshabilitada .s-opcion-cuerpo { opacity: 0.55; }
+.s-opcion-motivo {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 4px;
+    color: var(--s-texto-suave);
+    font-weight: var(--s-peso-semi);
+}
 
 .s-opcion input:checked + .s-opcion-cuerpo .s-opcion-icono {
     background: var(--s-superficie);
@@ -592,6 +606,17 @@
         flex-direction: row;
         flex-wrap: wrap;
         gap: var(--s-esp-3) var(--s-esp-6);
+    }
+}
+
+/* Cuatro etapas del ciclo: en anchos intermedios se reparten en 2 × 2 */
+@media (max-width: 1280px) {
+    .s-opciones-ciclo {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .s-opciones-ciclo .s-opcion + .s-opcion::before {
+        display: none;
     }
 }
 

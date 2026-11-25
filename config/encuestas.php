@@ -59,9 +59,9 @@ function metricasEncuestas(mysqli $conn, array $usuario): array
         $datos['promedio'] = $suma / $datos['respondidas'];
     }
 
-    // Tickets que podian recibir encuesta: resueltos y con codigo de seguimiento.
+    // Tickets que podian recibir encuesta: Resuelta o Cerrado y con codigo de seguimiento.
     $stmt = $conn->prepare("SELECT COUNT(*) AS cantidad FROM incidencias i
-        WHERE i.estado = 'Resuelta' AND i.codigo_seguimiento_hash IS NOT NULL AND (? = 1 OR i.tecnico_id = ?)");
+        WHERE i.estado IN ('Resuelta', 'Cerrado') AND i.codigo_seguimiento_hash IS NOT NULL AND (? = 1 OR i.tecnico_id = ?)");
     $stmt->bind_param('ii', $admin, $id);
     $stmt->execute();
     $datos['elegibles'] = (int) $stmt->get_result()->fetch_assoc()['cantidad'];

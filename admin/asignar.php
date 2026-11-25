@@ -127,6 +127,7 @@ function escapar($valor) {
         $tono_estado_ficha = match ($incidencia['estado']) {
             'Resuelta' => 'resuelta',
             'En proceso' => 'proceso',
+            'Cerrado' => 'cerrado',
             default => 'pendiente'
         };
         ?>

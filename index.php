@@ -37,6 +37,7 @@ function claseEstado($estado) {
         "Pendiente" => "pendiente",
         "En proceso" => "proceso",
         "Resuelta" => "resuelta",
+        "Cerrado" => "cerrado",
         default => "pendiente"
     };
 }
@@ -253,8 +254,19 @@ require __DIR__ . '/includes/cabecera_publica.php';
                                     <span class="s-flujo-numero">Paso 3</span>
                                     <span class="s-flujo-estado">Resuelta</span>
                                 </span>
-                                <strong class="s-flujo-nombre">Se resuelve y queda registrada</strong>
-                                <span class="s-flujo-detalle">El caso se cierra y su historial se conserva.</span>
+                                <strong class="s-flujo-nombre">Se resuelve el problema</strong>
+                                <span class="s-flujo-detalle">El técnico registra la solución y puedes calificar la atención.</span>
+                            </div>
+                        </li>
+                        <li class="s-flujo-paso" data-estado="cerrado">
+                            <span class="s-flujo-nodo" aria-hidden="true"></span>
+                            <div class="s-flujo-tarjeta">
+                                <span class="s-flujo-tarjeta-sup">
+                                    <span class="s-flujo-numero">Paso 4</span>
+                                    <span class="s-flujo-estado">Cerrado</span>
+                                </span>
+                                <strong class="s-flujo-nombre">El caso se cierra</strong>
+                                <span class="s-flujo-detalle">Queda finalizado y su historial se conserva.</span>
                             </div>
                         </li>
                     </ol>

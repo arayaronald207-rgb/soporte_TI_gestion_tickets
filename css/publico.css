@@ -540,6 +540,7 @@ body.s-publico {
 .s-flujo-paso[data-estado="pendiente"] { --estado: #F2A33A; --estado-texto: #F5B75C; --estado-fondo: rgba(242, 163, 58, 0.14); }
 .s-flujo-paso[data-estado="proceso"]   { --estado: #5B8DEF; --estado-texto: #8FB4FF; --estado-fondo: rgba(37, 99, 235, 0.22); }
 .s-flujo-paso[data-estado="resuelta"]  { --estado: #3CC27A; --estado-texto: #6FD49A; --estado-fondo: rgba(22, 163, 74, 0.18); }
+.s-flujo-paso[data-estado="cerrado"]   { --estado: #A78BFA; --estado-texto: #C4B5FD; --estado-fondo: rgba(109, 40, 217, 0.22); }
 
 /* Nodo de estado sobre la línea */
 .s-flujo-nodo {
