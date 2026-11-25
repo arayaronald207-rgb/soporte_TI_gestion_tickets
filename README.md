@@ -45,11 +45,15 @@ PHP 8.2 (mysqli), MariaDB 10.4 / MySQL, Apache 2.4 (XAMPP), HTML5, CSS3, JavaScr
    mysql -u root gestion_incidencias < C:\xampp\htdocs\gestion_incidencias\migracion_estado_cerrado.sql
    ```
 
-3. Crear una cuenta de base de datos con privilegios mínimos para la aplicación (comandos completos en el Manual Técnico, sección 3.5, incluido el permiso adicional para las encuestas).
+3. Crear una cuenta de base de datos con privilegios mínimos para la aplicación (reemplazar `TU_CONTRASENA` por una contraseña propia):
+
+   ```bat
+   mysql -u root -e "CREATE USER 'soporte_ti_app'@'localhost' IDENTIFIED BY 'TU_CONTRASENA'; GRANT SELECT, INSERT, UPDATE, DELETE ON gestion_incidencias.usuarios TO 'soporte_ti_app'@'localhost'; GRANT SELECT, INSERT, UPDATE ON gestion_incidencias.incidencias TO 'soporte_ti_app'@'localhost'; GRANT SELECT, INSERT ON gestion_incidencias.incidencia_historial TO 'soporte_ti_app'@'localhost';"
+   mysql -u root -e "GRANT SELECT, INSERT ON gestion_incidencias.encuestas_satisfaccion TO 'soporte_ti_app'@'localhost'; FLUSH PRIVILEGES;"
+   ```
+
 4. Configurar la conexión: copiar `config/config.example.php` como `config/config.local.php` y escribir el usuario y la contraseña de esa cuenta. **`config.local.php` no se sube al repositorio.**
 5. Abrir `http://localhost/gestion_incidencias/`.
-
-Las instrucciones detalladas están en [docs/Manual_Tecnico.md](docs/Manual_Tecnico.md).
 
 ## Cuentas de demostración
 
@@ -60,11 +64,6 @@ Las instrucciones detalladas están en [docs/Manual_Tecnico.md](docs/Manual_Tecn
 
 Son contraseñas públicas solo para evaluación y demostración. Si el sistema se usa con datos reales, cámbielas desde **Gestión de usuarios**.
 
-## Documentación
-
-- [Manual Técnico](docs/Manual_Tecnico.md): arquitectura y tecnologías, modelo de base de datos e instalación.
-- [Manual de Usuario](docs/Manual_Usuario.md): uso del sistema por rol, SLA y encuesta de satisfacción.
-
 ## Estructura
 
 | Ruta | Contenido |
@@ -74,8 +73,6 @@ Son contraseñas públicas solo para evaluación y demostración. Si el sistema 
 | `config/` | Conexión, sesión, autorización, historial, métricas, SLA y encuestas |
 | `includes/`, `css/`, `js/`, `fonts/`, `imagenes/` | Interfaz |
 | `*.sql` | Esquema base con datos de demostración y migraciones |
-| `tests/` | Pruebas funcionales en Python (base de pruebas aislada) |
-| `docs/` | Manuales técnico y de usuario |
 
 ## Autor
 

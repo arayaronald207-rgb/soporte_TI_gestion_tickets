@@ -50,3 +50,7 @@ $RECYCLE.BIN/
 
 # --- Archivos temporales de Office (documentos abiertos) ---
 ~$*
+
+# --- Documentación y pruebas locales (no se publican en GitHub) ---
+docs/
+tests/
