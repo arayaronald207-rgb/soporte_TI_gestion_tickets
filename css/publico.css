@@ -87,29 +87,30 @@ body.s-publico {
 }
 
 .s-pub-cabecera-interior {
+    position: relative;
     display: flex;
+    flex-wrap: wrap;
     align-items: center;
     justify-content: space-between;
-    gap: var(--s-esp-4);
+    gap: 0 var(--s-esp-4);
     min-height: 68px;
 }
 
-/* Barra con flexbox: marca a la izquierda, enlaces en el centro y cuenta a la
-   derecha. La navegación puede encogerse (min-width: 0), pero sus enlaces no se
-   parten (nowrap): por eso recorta y desplaza su propio contenido en lugar de
-   pintarlo encima del bloque de cuenta. */
+/* Navegación. Los enlaces nunca se cortan ni se desplazan:
+   - sin JavaScript pasan a otra fila si no caben;
+   - con JavaScript (clase .s-pub-js), si no caben completos en una fila se
+     agrupan en el menú hamburguesa (.s-pub-compacta). js/cabecera.js mide la
+     barra real, que tiene un ancho máximo de 1200 px aunque la ventana sea
+     más ancha; por eso no se usa una media query para decidirlo. */
 .s-pub-nav {
     display: flex;
     flex: 1 1 auto;
+    flex-wrap: wrap;
     align-items: center;
     gap: var(--s-esp-1);
     min-width: 0;
     margin-left: var(--s-esp-6);
-    overflow-x: auto;
-    scrollbar-width: none;
 }
-
-.s-pub-nav::-webkit-scrollbar { display: none; }
 
 .s-pub-cabecera .s-marca { flex-shrink: 0; }
 
@@ -118,25 +119,16 @@ body.s-publico {
     opacity: 0.75;
 }
 
-/* Zona de cuenta: acceso del visitante o identificación del personal */
+/* Zona de cuenta: acceso del visitante o «Ir al panel» y menú de la cuenta */
 .s-pub-cuenta {
     display: flex;
     flex-shrink: 0;
     align-items: center;
     gap: var(--s-esp-2);
+    margin-left: auto;
 }
 
-.s-pub-usuario {
-    display: inline-flex;
-    align-items: center;
-    gap: var(--s-esp-2);
-    padding: 4px 12px 4px 4px;
-    border: 1px solid var(--s-grafito-700);
-    border-radius: var(--s-radio-pildora);
-    background: rgba(255, 255, 255, 0.03);
-}
-
-.s-pub-usuario .s-avatar {
+.s-pub-cabecera .s-avatar {
     width: 30px;
     height: 30px;
     font-size: 11px;
@@ -144,40 +136,167 @@ body.s-publico {
     box-shadow: inset 0 0 0 1px var(--s-grafito-600);
 }
 
-.s-pub-usuario-texto {
+/* Con JavaScript: una sola fila; el menú hamburguesa aparece si hace falta */
+.s-pub-js .s-pub-cabecera-interior { flex-wrap: nowrap; }
+.s-pub-js .s-pub-nav { flex-wrap: nowrap; overflow: hidden; }
+
+.s-pub-hamburguesa {
+    display: none;
+    align-items: center;
+    gap: var(--s-esp-2);
+    min-height: 40px;
+    padding: 0 var(--s-esp-3);
+    border: 1px solid rgba(255, 255, 255, 0.22);
+    border-radius: var(--s-radio-md);
+    background: transparent;
+    color: var(--s-blanco);
+    font-family: var(--s-fuente);
+    font-size: var(--s-texto-sm);
+    font-weight: var(--s-peso-semi);
+    cursor: pointer;
+    transition: border-color var(--s-transicion), background-color var(--s-transicion);
+}
+
+.s-pub-hamburguesa:hover,
+.s-pub-hamburguesa[aria-expanded="true"] {
+    border-color: var(--s-cian-400);
+    background: rgba(14, 165, 183, 0.14);
+}
+
+.s-pub-compacta .s-pub-hamburguesa { display: inline-flex; flex-shrink: 0; margin-left: auto; }
+.s-pub-compacta .s-pub-nav { display: none; }
+.s-pub-compacta .s-pub-cuenta { margin-left: 0; }
+
+/* Menú hamburguesa abierto: lista vertical bajo la barra */
+.s-pub-compacta.s-pub-menu-abierto .s-pub-nav {
+    position: absolute;
+    top: calc(100% + var(--s-esp-2));
+    right: clamp(var(--s-esp-4), 4vw, var(--s-esp-8));
+    z-index: 40;
     display: flex;
     flex-direction: column;
-    max-width: 150px;
-    line-height: 1.2;
+    align-items: stretch;
+    width: min(320px, calc(100% - 2 * clamp(var(--s-esp-4), 4vw, var(--s-esp-8))));
+    margin: 0;
+    padding: var(--s-esp-2);
+    overflow: visible;
+    border: 1px solid var(--s-grafito-700);
+    border-radius: var(--s-radio-lg);
+    background: var(--s-grafito-900);
+    box-shadow: 0 16px 40px rgba(0, 0, 0, 0.35);
 }
 
-.s-pub-usuario-texto strong {
-    overflow: hidden;
-    color: var(--s-blanco);
-    font-size: var(--s-texto-xs);
-    text-overflow: ellipsis;
-    white-space: nowrap;
+.s-pub-menu-abierto .s-pub-enlace {
+    justify-content: flex-start;
+    min-height: 44px;
+    white-space: normal;
 }
 
-.s-pub-usuario-texto small {
-    color: var(--s-cian-400);
-    font-size: 11px;
+.s-pub-menu-abierto .s-pub-enlace[aria-current="page"]::after {
+    top: 10px;
+    bottom: 10px;
+    left: 0;
+    right: auto;
+    width: 3px;
+    height: auto;
 }
 
-.s-pub-salir {
+/* Menú de la cuenta (<details>: abre y cierra también sin JavaScript) */
+.s-pub-perfil { position: relative; }
+
+.s-pub-perfil-boton {
     display: inline-flex;
     align-items: center;
     gap: 6px;
     min-height: 40px;
-    padding: 0 var(--s-esp-3);
-    border-radius: var(--s-radio-md);
+    padding: 4px 10px 4px 4px;
+    border: 1px solid var(--s-grafito-700);
+    border-radius: var(--s-radio-pildora);
+    background: rgba(255, 255, 255, 0.03);
     color: #B8C2CE;
-    font-size: var(--s-texto-sm);
-    text-decoration: none;
-    white-space: nowrap;
+    list-style: none;
+    cursor: pointer;
+    transition: border-color var(--s-transicion);
 }
 
-.s-pub-salir:hover {
+.s-pub-perfil-boton::-webkit-details-marker { display: none; }
+
+.s-pub-perfil-boton:hover,
+.s-pub-perfil[open] .s-pub-perfil-boton { border-color: var(--s-cian-400); }
+
+.s-pub-perfil-boton:focus-visible,
+.s-pub-hamburguesa:focus-visible {
+    outline: none;
+    box-shadow: var(--s-anillo-foco);
+}
+
+.s-pub-perfil-flecha {
+    font-size: 10px;
+    transition: transform var(--s-transicion);
+}
+
+.s-pub-perfil[open] .s-pub-perfil-flecha { transform: rotate(180deg); }
+
+.s-pub-perfil-panel {
+    position: absolute;
+    top: calc(100% + var(--s-esp-2));
+    right: 0;
+    z-index: 40;
+    width: max-content;
+    min-width: 220px;
+    max-width: min(320px, calc(100vw - 2 * var(--s-esp-4)));
+    padding: var(--s-esp-2);
+    border: 1px solid var(--s-grafito-700);
+    border-radius: var(--s-radio-lg);
+    background: var(--s-grafito-900);
+    box-shadow: 0 16px 40px rgba(0, 0, 0, 0.35);
+}
+
+.s-pub-perfil-datos {
+    display: flex;
+    align-items: center;
+    gap: var(--s-esp-3);
+    margin-bottom: var(--s-esp-2);
+    padding: var(--s-esp-2) var(--s-esp-2) var(--s-esp-3);
+    border-bottom: 1px solid var(--s-grafito-700);
+    line-height: 1.3;
+}
+
+.s-pub-perfil-datos .s-avatar { flex-shrink: 0; width: 36px; height: 36px; font-size: 12px; }
+
+.s-pub-perfil-datos strong {
+    display: block;
+    color: var(--s-blanco);
+    font-size: var(--s-texto-sm);
+    overflow-wrap: anywhere;
+}
+
+.s-pub-perfil-datos small {
+    color: var(--s-cian-400);
+    font-size: var(--s-texto-xs);
+}
+
+.s-pub-salir {
+    display: flex;
+    align-items: center;
+    gap: var(--s-esp-2);
+    width: 100%;
+    min-height: 40px;
+    padding: 0 var(--s-esp-3);
+    border: 0;
+    border-radius: var(--s-radio-md);
+    background: transparent;
+    color: #B8C2CE;
+    font-family: var(--s-fuente);
+    font-size: var(--s-texto-sm);
+    font-weight: var(--s-peso-medio);
+    text-align: left;
+    cursor: pointer;
+}
+
+.s-pub-salir:hover,
+.s-pub-salir:focus-visible {
+    outline: none;
     background: rgba(220, 38, 38, 0.16);
     color: #FCA5A5;
 }
@@ -1325,51 +1444,6 @@ a.s-flujo-tarjeta:hover .s-flujo-abrir i {
    7. ADAPTACIÓN A PANTALLAS
    -------------------------------------------------------------------------- */
 
-/* Con sesión, la cuenta se compacta (avatar e iconos) antes de que falte espacio.
-   Texto oculto visualmente pero disponible para lectores de pantalla. */
-@media (max-width: 1480px) {
-    .s-pub-usuario {
-        padding: 4px;
-    }
-
-    .s-pub-usuario-texto,
-    .s-pub-salir-texto {
-        position: absolute;
-        width: 1px;
-        height: 1px;
-        overflow: hidden;
-        clip: rect(0, 0, 0, 0);
-        white-space: nowrap;
-    }
-
-    .s-pub-salir {
-        width: 40px;
-        justify-content: center;
-        padding: 0;
-    }
-}
-
-/* Con sesión hay cuatro enlaces más el bloque de cuenta: pasan a dos filas antes
-   que en la cabecera del visitante (marca y cuenta arriba, enlaces debajo). */
-@media (max-width: 1180px) {
-    .s-pub-cabecera-sesion .s-pub-cabecera-interior {
-        flex-wrap: wrap;
-        gap: 0 var(--s-esp-3);
-        padding-top: var(--s-esp-3);
-    }
-
-    .s-pub-cabecera-sesion .s-pub-cuenta {
-        margin-left: auto;
-    }
-
-    .s-pub-cabecera-sesion .s-pub-nav {
-        order: 3;
-        flex: 1 1 100%;
-        margin: 0 calc(-1 * clamp(var(--s-esp-4), 4vw, var(--s-esp-8)));
-        padding: var(--s-esp-2) clamp(var(--s-esp-4), 4vw, var(--s-esp-8)) var(--s-esp-3);
-    }
-}
-
 @media (max-width: 1100px) {
     .s-acceso-rasgos {
         grid-template-columns: minmax(0, 1fr);
@@ -1410,22 +1484,15 @@ a.s-flujo-tarjeta:hover .s-flujo-abrir i {
 }
 
 @media (max-width: 900px) {
-    /* Cabecera: marca y cuenta arriba; navegación en una segunda fila desplazable */
-    .s-pub-cabecera-interior {
-        flex-wrap: wrap;
-        gap: 0 var(--s-esp-3);
-        padding-top: var(--s-esp-3);
+    /* Sin JavaScript: marca y cuenta arriba; enlaces debajo, en varias filas si hace falta */
+    .s-pub-cabecera:not(.s-pub-js) .s-pub-cabecera-interior {
+        padding-block: var(--s-esp-3);
     }
 
-    .s-pub-cuenta {
-        margin-left: auto;
-    }
-
-    .s-pub-nav {
+    .s-pub-cabecera:not(.s-pub-js) .s-pub-nav {
         order: 3;
         flex: 1 1 100%;
-        margin: 0 calc(-1 * clamp(var(--s-esp-4), 4vw, var(--s-esp-8)));
-        padding: var(--s-esp-2) clamp(var(--s-esp-4), 4vw, var(--s-esp-8)) var(--s-esp-3);
+        margin: var(--s-esp-2) 0 0;
     }
 
     .s-pub-hero-rejilla {
@@ -1495,7 +1562,7 @@ a.s-flujo-tarjeta:hover .s-flujo-abrir i {
 /* Teléfonos: los botones de la cuenta quedan solo con icono (el texto sigue
    disponible para lectores de pantalla) para que nunca salgan de la pantalla. */
 @media (max-width: 600px) {
-    .s-pub-cabecera-sesion .s-pub-cuenta .s-btn-primario span {
+    .s-pub-panel span {
         position: absolute;
         width: 1px;
         height: 1px;
@@ -1504,7 +1571,7 @@ a.s-flujo-tarjeta:hover .s-flujo-abrir i {
         white-space: nowrap;
     }
 
-    .s-pub-cabecera-sesion .s-pub-cuenta .s-btn-primario {
+    .s-pub-panel {
         width: 40px;
         padding: 0;
     }
@@ -1527,7 +1594,7 @@ a.s-flujo-tarjeta:hover .s-flujo-abrir i {
 }
 
 @media (max-width: 420px) {
-    .s-pub-cuenta .s-btn-primario span {
+    .s-pub-hamburguesa-texto {
         position: absolute;
         width: 1px;
         height: 1px;
@@ -1536,15 +1603,36 @@ a.s-flujo-tarjeta:hover .s-flujo-abrir i {
         white-space: nowrap;
     }
 
-    .s-pub-cuenta .s-btn-primario {
+    .s-pub-hamburguesa {
         width: 40px;
+        justify-content: center;
         padding: 0;
+    }
+
+    /* Avatar redondo sin flecha */
+    .s-pub-perfil-flecha { display: none; }
+    .s-pub-perfil-boton { padding: 4px; }
+}
+
+/* Pantallas muy angostas (o 375 px con zoom 125 %): queda solo el logotipo;
+   el nombre «Soporte TI» sigue disponible para lectores de pantalla. */
+@media (max-width: 360px) {
+    .s-pub-cabecera .s-marca-texto {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        overflow: hidden;
+        clip: rect(0, 0, 0, 0);
+        white-space: nowrap;
     }
 }
 
 @media (prefers-reduced-motion: reduce) {
     .s-pub-enlace,
-    .s-pub-funcion {
+    .s-pub-funcion,
+    .s-pub-hamburguesa,
+    .s-pub-perfil-boton,
+    .s-pub-perfil-flecha {
         transition: none;
     }
 }

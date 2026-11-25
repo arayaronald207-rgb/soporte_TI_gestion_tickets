@@ -79,12 +79,12 @@ function escapar($valor): string {
     <?php require_once __DIR__ . '/../includes/recursos.php'; ?>
     <?= faviconSenal('../') ?>
 
-    <link rel="stylesheet" href="../css/tema.css">
-    <link rel="stylesheet" href="../css/estilos.css">
+    <link rel="stylesheet" href="<?= recursoVersionado('css/tema.css', '../') ?>">
+    <link rel="stylesheet" href="<?= recursoVersionado('css/estilos.css', '../') ?>">
 
     <link rel="stylesheet"
           href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css">
-    <link rel="stylesheet" href="../css/navegacion.css">
+    <link rel="stylesheet" href="<?= recursoVersionado('css/navegacion.css', '../') ?>">
 </head>
 
 <body class="pagina-dashboard s-app">

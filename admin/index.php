@@ -192,9 +192,9 @@ if (isset($_GET["asignado"])) {
     <?php require_once __DIR__ . '/../includes/recursos.php'; ?>
     <?= faviconSenal('../') ?>
 
-    <link rel="stylesheet" href="../css/tema.css">
-    <link rel="stylesheet" href="../css/estilos.css">
-    <link rel="stylesheet" href="../css/dashboard.css">
+    <link rel="stylesheet" href="<?= recursoVersionado('css/tema.css', '../') ?>">
+    <link rel="stylesheet" href="<?= recursoVersionado('css/estilos.css', '../') ?>">
+    <link rel="stylesheet" href="<?= recursoVersionado('css/dashboard.css', '../') ?>">
 
     <link rel="stylesheet"
           href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css">
@@ -202,10 +202,10 @@ if (isset($_GET["asignado"])) {
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.8/dist/chart.umd.min.js"
             defer></script>
     <!-- Ajustes visuales globales de Chart.js (tipografía y colores neutros); no toca datos ni configuración de los gráficos -->
-    <script src="../js/graficos-tema.js" defer></script>
-    <link rel="stylesheet" href="../css/navegacion.css">
-    <link rel="stylesheet" href="../css/metricas.css">
-    <link rel="stylesheet" href="../css/tickets.css">
+    <script src="<?= recursoVersionado('js/graficos-tema.js', '../') ?>" defer></script>
+    <link rel="stylesheet" href="<?= recursoVersionado('css/navegacion.css', '../') ?>">
+    <link rel="stylesheet" href="<?= recursoVersionado('css/metricas.css', '../') ?>">
+    <link rel="stylesheet" href="<?= recursoVersionado('css/tickets.css', '../') ?>">
     <link rel="stylesheet" href="../css/calidad.css?v=<?= (int) @filemtime(__DIR__ . '/../css/calidad.css') ?>">
 </head>
 

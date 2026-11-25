@@ -26,7 +26,7 @@ $pub_iniciales = mb_strtoupper(mb_substr(preg_replace('/[^\p{L}\p{N}]+/u', '', $
 ?>
 <a href="#contenido" class="s-saltar">Saltar al contenido</a>
 
-<header class="s-pub-cabecera<?= $pub_con_sesion ? ' s-pub-cabecera-sesion' : '' ?>">
+<header class="s-pub-cabecera<?= $pub_con_sesion ? ' s-pub-cabecera-sesion' : '' ?>" data-cabecera-publica>
     <div class="s-pub-contenedor s-pub-cabecera-interior">
 
         <a href="index.php" class="s-marca">
@@ -37,7 +37,16 @@ $pub_iniciales = mb_strtoupper(mb_substr(preg_replace('/[^\p{L}\p{N}]+/u', '', $
             </span>
         </a>
 
-        <nav class="s-pub-nav" aria-label="Navegación principal">
+        <!-- Antes de <nav> para que, abierto, Tab pase del botón a los enlaces -->
+        <button type="button" class="s-pub-hamburguesa" aria-expanded="false" aria-controls="pub-nav" hidden>
+            <i class="fa-solid fa-bars" aria-hidden="true"></i>
+            <span class="s-pub-hamburguesa-texto">Menú</span>
+        </button>
+
+        <!-- Sin JavaScript los enlaces pasan a otra fila si no caben (nunca se cortan).
+             Con JavaScript, si no caben completos en una fila se agrupan en el menú
+             hamburguesa (js/cabecera.js mide la barra, no la ventana). -->
+        <nav class="s-pub-nav" id="pub-nav" aria-label="Navegación principal">
             <a href="index.php" class="s-pub-enlace"<?= $pub_actual('inicio') ?>>
                 <i class="fa-solid fa-house" aria-hidden="true"></i> Inicio
             </a>
@@ -57,24 +66,33 @@ $pub_iniciales = mb_strtoupper(mb_substr(preg_replace('/[^\p{L}\p{N}]+/u', '', $
 
         <div class="s-pub-cuenta">
             <?php if ($pub_con_sesion): ?>
-                <span class="s-pub-usuario">
-                    <span class="s-avatar" aria-hidden="true"><?= $pub_e($pub_iniciales) ?></span>
-                    <span class="s-pub-usuario-texto">
-                        <strong><?= $pub_e($pub_usuario) ?></strong>
-                        <small><?= $pub_e($pub_rol) ?></small>
-                    </span>
-                </span>
-                <a href="admin/index.php" class="s-btn s-btn-primario s-pub-acceso">
+                <a href="admin/index.php" class="s-btn s-btn-primario s-pub-acceso s-pub-panel">
                     <i class="fa-solid fa-gauge-high" aria-hidden="true"></i>
                     <span>Ir al panel</span>
                 </a>
-                <form method="POST" action="admin/logout.php" class="s-form-salir">
-                    <input type="hidden" name="logout_csrf_token" value="<?= $pub_e(tokenCsrfLogout()) ?>">
-                    <button type="submit" class="s-pub-salir" title="Cerrar sesión">
-                        <i class="fa-solid fa-right-from-bracket" aria-hidden="true"></i>
-                        <span class="s-pub-salir-texto">Cerrar sesión</span>
-                    </button>
-                </form>
+                <!-- <details> abre y cierra el menú también sin JavaScript -->
+                <details class="s-pub-perfil">
+                    <summary class="s-pub-perfil-boton" aria-label="Menú de la cuenta <?= $pub_e($pub_usuario) ?>">
+                        <span class="s-avatar" aria-hidden="true"><?= $pub_e($pub_iniciales) ?></span>
+                        <i class="fa-solid fa-chevron-down s-pub-perfil-flecha" aria-hidden="true"></i>
+                    </summary>
+                    <div class="s-pub-perfil-panel">
+                        <div class="s-pub-perfil-datos">
+                            <span class="s-avatar" aria-hidden="true"><?= $pub_e($pub_iniciales) ?></span>
+                            <span>
+                                <strong><?= $pub_e($pub_usuario) ?></strong>
+                                <small><?= $pub_e($pub_rol) ?></small>
+                            </span>
+                        </div>
+                        <form method="POST" action="admin/logout.php" class="s-form-salir">
+                            <input type="hidden" name="logout_csrf_token" value="<?= $pub_e(tokenCsrfLogout()) ?>">
+                            <button type="submit" class="s-pub-salir">
+                                <i class="fa-solid fa-right-from-bracket" aria-hidden="true"></i>
+                                Cerrar sesión
+                            </button>
+                        </form>
+                    </div>
+                </details>
             <?php else: ?>
                 <a href="login.php" class="s-btn s-pub-acceso s-pub-acceso-claro">
                     <i class="fa-solid fa-lock" aria-hidden="true"></i>
@@ -85,5 +103,6 @@ $pub_iniciales = mb_strtoupper(mb_substr(preg_replace('/[^\p{L}\p{N}]+/u', '', $
 
     </div>
 </header>
+<script src="<?= recursoVersionado('js/cabecera.js') ?>" defer></script>
 <?php
 unset($pub_con_sesion, $pub_usuario, $pub_rol, $pub_e, $pub_actual, $pub_iniciales);

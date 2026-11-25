@@ -122,7 +122,7 @@ $categorias = ['hardware' => 'Hardware', 'software' => 'Software', 'red' => 'Red
     $version_recurso = static fn(string $ruta): int => (int) @filemtime(__DIR__ . '/../' . $ruta);
     ?>
     <link rel="stylesheet" href="../css/tema.css?v=<?= $version_recurso('css/tema.css') ?>">
-    <link rel="stylesheet" href="../css/estilos.css">
+    <link rel="stylesheet" href="<?= recursoVersionado('css/estilos.css', '../') ?>">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css">
     <link rel="stylesheet" href="../css/navegacion.css?v=<?= $version_recurso('css/navegacion.css') ?>">
     <link rel="stylesheet" href="../css/formularios.css?v=<?= $version_recurso('css/formularios.css') ?>">
