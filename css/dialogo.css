@@ -1,0 +1,139 @@
+/* ==========================================================================
+   VENTANA MODAL DE CONFIRMACIÓN («Señal»)
+   Componente de js/dialogo.js. Usa los tokens de css/tema.css.
+   ========================================================================== */
+
+/* Evita que la página se desplace detrás del modal */
+.s-dialogo-activo,
+.s-dialogo-activo body {
+    overflow: hidden;
+}
+
+.s-dialogo-fondo {
+    position: fixed;
+    inset: 0;
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: var(--s-esp-4);
+    background: rgba(10, 16, 24, 0.62);   /* --s-grafito-950 con transparencia */
+    opacity: 0;
+    transition: opacity 180ms ease;
+}
+
+.s-dialogo {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: var(--s-esp-4);
+    width: min(460px, 100%);
+    max-height: calc(100vh - 2 * var(--s-esp-4));
+    overflow-y: auto;
+    padding: var(--s-esp-6);
+    border: 1px solid var(--s-borde);
+    border-top: 4px solid var(--s-dialogo-acento, var(--s-aviso));
+    border-radius: var(--s-radio-lg);
+    background: var(--s-superficie);
+    box-shadow: var(--s-sombra-3);
+    color: var(--s-texto);
+    font-family: var(--s-fuente);
+    transform: translateY(12px) scale(0.98);
+    transition: transform 220ms cubic-bezier(0.2, 0, 0, 1);
+}
+
+.s-dialogo-visible { opacity: 1; }
+.s-dialogo-visible .s-dialogo { transform: none; }
+
+/* Tipos: acento, fondo e icono */
+.s-dialogo-advertencia { --s-dialogo-acento: var(--s-aviso); --s-dialogo-fondo-icono: var(--s-aviso-fondo); --s-dialogo-icono: var(--s-aviso-texto); }
+.s-dialogo-peligro     { --s-dialogo-acento: var(--s-error); --s-dialogo-fondo-icono: var(--s-error-fondo); --s-dialogo-icono: var(--s-error-texto); }
+.s-dialogo-info        { --s-dialogo-acento: var(--s-info);  --s-dialogo-fondo-icono: var(--s-info-fondo);  --s-dialogo-icono: var(--s-info-texto); }
+
+.s-dialogo-icono {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    background: var(--s-dialogo-fondo-icono, var(--s-aviso-fondo));
+    color: var(--s-dialogo-icono, var(--s-aviso-texto));
+    font-size: 1.25rem;
+}
+
+.s-dialogo-titulo {
+    margin: 0 0 var(--s-esp-2);
+    font-size: var(--s-texto-lg);
+    font-weight: var(--s-peso-fuerte);
+    line-height: var(--s-interlineado-titulo);
+    color: var(--s-texto);
+}
+
+.s-dialogo-mensaje {
+    margin: 0;
+    font-size: var(--s-texto-sm);
+    line-height: var(--s-interlineado);
+    color: var(--s-texto-suave);
+}
+
+.s-dialogo-acciones {
+    grid-column: 1 / -1;
+    display: flex;
+    justify-content: flex-end;
+    gap: var(--s-esp-3);
+    margin-top: var(--s-esp-2);
+}
+
+/* Botón de confirmación para acciones destructivas (relleno, color de peligro).
+   #B42318 sobre blanco: contraste 6.5:1. */
+.s-btn-peligro {
+    background: var(--s-error-texto);
+    border-color: var(--s-error-texto);
+    color: var(--s-blanco);
+}
+.s-btn-peligro:hover {
+    background: #912018;
+    border-color: #912018;
+}
+.s-btn-peligro:focus-visible {
+    box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.35);
+}
+
+/* Confirmación sin JavaScript: misma información, dentro de la página */
+.s-confirmacion {
+    display: flex;
+    flex-direction: column;
+    gap: var(--s-esp-3);
+}
+.s-confirmacion-titulo {
+    margin: 0;
+    font-size: var(--s-texto-md);
+    font-weight: var(--s-peso-fuerte);
+}
+.s-confirmacion p { margin: 0; }
+.s-confirmacion-acciones {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--s-esp-2);
+}
+.s-confirmacion-acciones form { margin: 0; }
+
+/* Teléfonos: icono sobre el texto y botones a todo el ancho */
+@media (max-width: 480px) {
+    .s-dialogo-fondo { align-items: flex-end; padding: var(--s-esp-3); }
+    .s-dialogo {
+        grid-template-columns: 1fr;
+        gap: var(--s-esp-3);
+        padding: var(--s-esp-5);
+        text-align: center;
+    }
+    .s-dialogo-icono { justify-self: center; }
+    .s-dialogo-acciones { flex-direction: column-reverse; }
+    .s-dialogo-acciones .s-btn { width: 100%; min-height: 44px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .s-dialogo-fondo,
+    .s-dialogo { transition: none; }
+    .s-dialogo { transform: none; }
+}

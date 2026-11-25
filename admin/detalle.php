@@ -16,6 +16,7 @@ if (empty($_SESSION['csrf_token'])) {
 }
 $error = '';
 $comentario = '';
+$confirmar_codigo = false;
 try {
     // Incluso la lectura del historial mantiene el permiso hasta terminar de leer.
     // El bloqueo vuelve a consultar la asignacion actual, no la del formulario.
@@ -27,6 +28,11 @@ try {
         if (!is_string($token) || !hash_equals($_SESSION['csrf_token'], $token)) {
             http_response_code(403);
             $error = 'Solicitud no válida. Actualiza la página.';
+        } elseif ($accion === 'codigo' && $incidencia['codigo_seguimiento_hash'] !== null &&
+            ($_POST['confirmado'] ?? null) !== '1') {
+            // Reemplazar un codigo activo lo invalida: se pide confirmacion explicita.
+            // Con JavaScript la da el modal; sin JavaScript se muestra en la pagina.
+            $confirmar_codigo = true;
         } elseif ($accion === 'codigo') {
             // Nuevo codigo para el solicitante (por ejemplo, si perdio el anterior).
             // Solo se guarda el hash; el codigo se muestra una unica vez al personal.
@@ -122,7 +128,10 @@ $categorias = ['hardware' => 'Hardware', 'software' => 'Software', 'red' => 'Red
     <link rel="stylesheet" href="../css/formularios.css?v=<?= $version_recurso('css/formularios.css') ?>">
     <link rel="stylesheet" href="../css/historial.css?v=<?= $version_recurso('css/historial.css') ?>">
     <link rel="stylesheet" href="../css/calidad.css?v=<?= $version_recurso('css/calidad.css') ?>">
+    <link rel="stylesheet" href="../css/dialogo.css?v=<?= $version_recurso('css/dialogo.css') ?>">
     <script src="../js/formularios.js?v=<?= $version_recurso('js/formularios.js') ?>" defer></script>
+    <script src="../js/dialogo.js?v=<?= $version_recurso('js/dialogo.js') ?>" defer></script>
+    <script src="../js/copiar.js?v=<?= $version_recurso('js/copiar.js') ?>" defer></script>
 </head>
 <body class="pagina-dashboard s-app">
 <div class="dashboard-layout">
@@ -417,11 +426,38 @@ $categorias = ['hardware' => 'Hardware', 'software' => 'Software', 'red' => 'Red
                 <div class="s-ficha-bloque" id="codigo" aria-labelledby="titulo-codigo">
                     <span class="s-rotulo" id="titulo-codigo">Código de seguimiento</span>
                     <?php if ($codigo_generado !== null): ?>
-                        <div class="s-aviso s-aviso-alerta" role="status">
-                            <i class="fa-solid fa-key" aria-hidden="true"></i>
-                            <div>
-                                Nuevo código: <strong class="s-mono"><?= escapar($codigo_generado) ?></strong><br>
-                                Entrégalo al solicitante ahora: no volverá a mostrarse.
+                        <div class="s-codigo-tarjeta" role="status">
+                            <span class="s-codigo-rotulo">
+                                <i class="fa-solid fa-key" aria-hidden="true"></i> Nuevo código de seguimiento
+                            </span>
+                            <div class="s-codigo-fila">
+                                <strong class="s-codigo-valor" id="codigo-generado"><?= escapar($codigo_generado) ?></strong>
+                                <button type="button" class="s-btn s-btn-sm s-codigo-copiar" data-copiar="codigo-generado" hidden>
+                                    <i class="fa-solid fa-copy" aria-hidden="true"></i>
+                                    <span class="s-copiar-texto">Copiar</span>
+                                </button>
+                            </div>
+                            <p class="s-codigo-nota">
+                                <i class="fa-solid fa-eye-slash" aria-hidden="true"></i>
+                                <span><strong>Este código solo se muestra esta vez.</strong>
+                                Entrégaselo al solicitante ahora: el código anterior ya no funciona.</span>
+                            </p>
+                        </div>
+                    <?php elseif ($confirmar_codigo): ?>
+                        <!-- Confirmación sin JavaScript (con JavaScript la da el modal) -->
+                        <div class="s-aviso s-aviso-alerta s-confirmacion" role="alert">
+                            <p class="s-confirmacion-titulo">¿Generar un nuevo código de seguimiento?</p>
+                            <p>El código actual dejará de funcionar. Deberás entregarle el nuevo código al solicitante para que pueda consultar su ticket.</p>
+                            <div class="s-confirmacion-acciones">
+                                <a href="detalle.php?id=<?= (int) $id ?>#codigo" class="s-btn s-btn-secundario s-btn-sm">Cancelar</a>
+                                <form method="POST" action="detalle.php?id=<?= (int) $id ?>">
+                                    <input type="hidden" name="csrf_token" value="<?= escapar($_SESSION['csrf_token']) ?>">
+                                    <input type="hidden" name="accion" value="codigo">
+                                    <input type="hidden" name="confirmado" value="1">
+                                    <button type="submit" class="s-btn s-btn-peligro s-btn-sm">
+                                        <i class="fa-solid fa-key" aria-hidden="true"></i> Generar código
+                                    </button>
+                                </form>
                             </div>
                         </div>
                     <?php else: ?>
@@ -431,14 +467,22 @@ $categorias = ['hardware' => 'Hardware', 'software' => 'Software', 'red' => 'Red
                                 : 'El solicitante tiene un código activo. Si lo perdió, genera uno nuevo (el anterior dejará de funcionar).' ?>
                         </p>
                     <?php endif; ?>
-                    <form method="POST" action="detalle.php?id=<?= (int) $id ?>">
-                        <input type="hidden" name="csrf_token" value="<?= escapar($_SESSION['csrf_token']) ?>">
-                        <input type="hidden" name="accion" value="codigo">
-                        <button type="submit" class="s-btn s-btn-secundario s-btn-sm"
-                                onclick="return confirm('¿Generar un nuevo código de seguimiento? El código anterior dejará de funcionar.');">
-                            <i class="fa-solid fa-key" aria-hidden="true"></i> Generar código nuevo
-                        </button>
-                    </form>
+                    <?php if (!$confirmar_codigo): ?>
+                        <form method="POST" action="detalle.php?id=<?= (int) $id ?>"
+                            <?php if ($incidencia['codigo_seguimiento_hash'] !== null): ?>
+                              data-confirmar
+                              data-confirmar-tipo="peligro"
+                              data-confirmar-titulo="¿Generar un nuevo código de seguimiento?"
+                              data-confirmar-mensaje="El código actual dejará de funcionar. Deberás entregarle el nuevo código al solicitante para que pueda consultar su ticket."
+                              data-confirmar-boton="Generar código"
+                            <?php endif; ?>>
+                            <input type="hidden" name="csrf_token" value="<?= escapar($_SESSION['csrf_token']) ?>">
+                            <input type="hidden" name="accion" value="codigo">
+                            <button type="submit" class="s-btn s-btn-secundario s-btn-sm">
+                                <i class="fa-solid fa-key" aria-hidden="true"></i> Generar código nuevo
+                            </button>
+                        </form>
+                    <?php endif; ?>
                 </div>
             </aside>
 

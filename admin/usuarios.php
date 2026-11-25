@@ -33,10 +33,11 @@ $accion_actual = "";
 $editar_id = 0;
 $editar_usuario = "";
 $editar_rol = "tecnico";
+$confirmar_eliminar = null;
 
 // Procesar formularios
 if ($_SERVER["REQUEST_METHOD"] === "POST") {
-    validarParametrosTexto($_POST, ['accion', 'id', 'usuario', 'rol', 'contrasena', 'confirmar']);
+    validarParametrosTexto($_POST, ['accion', 'id', 'usuario', 'rol', 'contrasena', 'confirmar', 'confirmado']);
     // csrf_token conserva la comprobacion de tipo y hash_equals existentes.
 
     $accion = $_POST["accion"] ?? "crear";
@@ -245,7 +246,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
         } else {
 
             $consulta = $conn->prepare(
-                "SELECT id FROM usuarios WHERE id = ? LIMIT 1"
+                "SELECT id, usuario FROM usuarios WHERE id = ? LIMIT 1"
             );
             $consulta->bind_param("i", $eliminar_id);
             $consulta->execute();
@@ -254,6 +255,10 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
             if (!$existe) {
                 $error = "El usuario que deseas eliminar ya no existe.";
+            } elseif (($_POST["confirmado"] ?? null) !== "1") {
+                // Eliminar es irreversible: se exige confirmacion explicita.
+                // Con JavaScript la da el modal; sin JavaScript se muestra en la pagina.
+                $confirmar_eliminar = $existe;
             } else {
 
                 $eliminar = $conn->prepare(
@@ -351,6 +356,8 @@ $iniciales_usuario = static fn(string $nombre): string =>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css">
     <link rel="stylesheet" href="<?= recursoVersionado('css/navegacion.css', '../') ?>">
     <link rel="stylesheet" href="<?= recursoVersionado('css/usuarios.css', '../') ?>">
+    <link rel="stylesheet" href="<?= recursoVersionado('css/dialogo.css', '../') ?>">
+    <script src="<?= recursoVersionado('js/dialogo.js', '../') ?>" defer></script>
 </head>
 
 <body class="pagina-dashboard s-app">
@@ -404,6 +411,29 @@ $iniciales_usuario = static fn(string $nombre): string =>
             <div class="s-aviso s-aviso-error s-usuarios-aviso" role="alert">
                 <i class="fa-solid fa-circle-exclamation" aria-hidden="true"></i>
                 <div><?= escaparUsuario($error) ?></div>
+            </div>
+        <?php endif; ?>
+        <?php if ($confirmar_eliminar !== null): ?>
+            <!-- Confirmación sin JavaScript (con JavaScript la da el modal) -->
+            <div class="s-aviso s-aviso-error s-usuarios-aviso" role="alert">
+                <i class="fa-solid fa-triangle-exclamation" aria-hidden="true"></i>
+                <div class="s-confirmacion">
+                    <p class="s-confirmacion-titulo">¿Eliminar al usuario «<?= escaparUsuario($confirmar_eliminar["usuario"]) ?>»?</p>
+                    <p>La cuenta se borrará de forma permanente. Esta acción no se puede deshacer.</p>
+                    <div class="s-confirmacion-acciones">
+                        <a href="usuarios.php" class="s-btn s-btn-secundario s-btn-sm">Cancelar</a>
+                        <form method="POST" action="usuarios.php">
+                            <input type="hidden" name="csrf_token" value="<?= escaparUsuario($_SESSION["csrf_token"]) ?>">
+                            <input type="hidden" name="accion" value="eliminar">
+                            <input type="hidden" name="id" value="<?= (int)$confirmar_eliminar["id"] ?>">
+                            <input type="hidden" name="confirmado" value="1">
+                            <button type="submit" class="s-btn s-btn-peligro s-btn-sm">
+                                <i class="fa-solid fa-trash" aria-hidden="true"></i>
+                                Eliminar usuario
+                            </button>
+                        </form>
+                    </div>
+                </div>
             </div>
         <?php endif; ?>
 
@@ -608,7 +638,11 @@ $iniciales_usuario = static fn(string $nombre): string =>
                                             <form
                                                 method="POST"
                                                 class="s-usuarios-form-eliminar"
-                                                onsubmit="return confirm('¿Seguro que deseas eliminar este usuario? Esta acción no se puede deshacer.');"
+                                                data-confirmar
+                                                data-confirmar-tipo="peligro"
+                                                data-confirmar-titulo="¿Eliminar al usuario «<?= escaparUsuario($fila["usuario"]) ?>»?"
+                                                data-confirmar-mensaje="La cuenta se borrará de forma permanente. Esta acción no se puede deshacer."
+                                                data-confirmar-boton="Eliminar usuario"
                                             >
                                                 <input type="hidden" name="csrf_token" value="<?= escaparUsuario($_SESSION["csrf_token"]) ?>">
                                                 <input type="hidden" name="accion" value="eliminar">

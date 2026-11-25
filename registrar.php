@@ -162,6 +162,7 @@ function escapar($valor) {
     <link rel="stylesheet" href="<?= recursoVersionado('css/publico.css') ?>">
     <link rel="stylesheet" href="<?= recursoVersionado('css/calidad.css') ?>">
     <script src="<?= recursoVersionado('js/formularios.js') ?>" defer></script>
+    <script src="<?= recursoVersionado('js/copiar.js') ?>" defer></script>
 </head>
 <?php if ($admin_activo): ?>
 <!-- PERSONAL CON SESIÓN: navegación interna (menú lateral compartido) -->
@@ -220,18 +221,26 @@ require __DIR__ . '/includes/cabecera_publica.php';
 
             <?php if ($codigo_creado !== null): ?>
                 <!-- CÓDIGO DE SEGUIMIENTO: se muestra una sola vez -->
-                <div class="s-registro-numero s-registro-codigo">
-                    <span>Código de seguimiento</span>
-                    <strong class="s-mono"><?= escapar($codigo_creado) ?></strong>
-                </div>
-                <div class="s-aviso s-aviso-alerta s-registro-codigo-aviso">
-                    <i class="fa-solid fa-key" aria-hidden="true"></i>
-                    <div>
-                        <strong>Guarda este código: solo se muestra ahora.</strong>
-                        Con el número de ticket y este código podrás consultar el estado de tu incidencia en
-                        <a href="seguimiento.php">Consultar mi ticket</a> y, cuando esté resuelta,
-                        calificar la atención recibida.
+                <div class="s-codigo-tarjeta">
+                    <span class="s-codigo-rotulo">
+                        <i class="fa-solid fa-key" aria-hidden="true"></i> Código de seguimiento
+                    </span>
+                    <div class="s-codigo-fila">
+                        <strong class="s-codigo-valor" id="codigo-creado"><?= escapar($codigo_creado) ?></strong>
+                        <button type="button" class="s-btn s-btn-sm s-codigo-copiar" data-copiar="codigo-creado" hidden>
+                            <i class="fa-solid fa-copy" aria-hidden="true"></i>
+                            <span class="s-copiar-texto">Copiar</span>
+                        </button>
                     </div>
+                    <p class="s-codigo-nota">
+                        <i class="fa-solid fa-eye-slash" aria-hidden="true"></i>
+                        <span>
+                            <strong>Este código solo se muestra esta vez.</strong>
+                            Guárdalo: con el número de ticket y este código podrás consultar tu incidencia en
+                            <a href="seguimiento.php">Consultar mi ticket</a> y, cuando esté resuelta,
+                            calificar la atención recibida.
+                        </span>
+                    </p>
                 </div>
             <?php endif; ?>
 
