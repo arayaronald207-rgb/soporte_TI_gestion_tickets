@@ -45,7 +45,7 @@ PHP 8.2 (mysqli), MariaDB 10.4 / MySQL, Apache 2.4 (XAMPP), HTML5, CSS3, JavaScr
    mysql -u root gestion_incidencias < C:\xampp\htdocs\gestion_incidencias\migracion_estado_cerrado.sql
    ```
 
-3. Crear una cuenta de base de datos con privilegios mínimos para la aplicación (comandos completos en el Manual Técnico, paso 5).
+3. Crear una cuenta de base de datos con privilegios mínimos para la aplicación (comandos completos en el Manual Técnico, sección 3.5, incluido el permiso adicional para las encuestas).
 4. Configurar la conexión: copiar `config/config.example.php` como `config/config.local.php` y escribir el usuario y la contraseña de esa cuenta. **`config.local.php` no se sube al repositorio.**
 5. Abrir `http://localhost/gestion_incidencias/`.
 
@@ -62,8 +62,8 @@ Son contraseñas públicas solo para evaluación y demostración. Si el sistema 
 
 ## Documentación
 
-- [Manual Técnico](docs/Manual_Tecnico.md): arquitectura, base de datos, módulos, instalación y seguridad.
-- [Manual de Usuario](docs/Manual_Usuario.md): uso del sistema por rol y funciones adicionales.
+- [Manual Técnico](docs/Manual_Tecnico.md): arquitectura y tecnologías, modelo de base de datos e instalación.
+- [Manual de Usuario](docs/Manual_Usuario.md): uso del sistema por rol, SLA y encuesta de satisfacción.
 
 ## Estructura
 
