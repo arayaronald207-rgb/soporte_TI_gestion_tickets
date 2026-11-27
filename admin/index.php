@@ -28,6 +28,7 @@ $metricas = metricasIncidencias($conn, $usuario_actual);
 // Funciones adicionales: acuerdos de nivel de servicio y satisfaccion del solicitante.
 require_once __DIR__ . '/../config/sla.php';
 require_once __DIR__ . '/../config/encuestas.php';
+require_once __DIR__ . '/../config/confirmaciones.php';
 $metricas_sla = metricasSla($conn, $usuario_actual);
 $metricas_encuestas = metricasEncuestas($conn, $usuario_actual);
 $total = $metricas['activos'];
@@ -92,7 +93,9 @@ if ($es_admin) {
     )->fetch_all(MYSQLI_ASSOC);
 }
 
-$sql = "SELECT i.*, UNIX_TIMESTAMP(i.fecha_registro) AS registro_epoch, t.usuario AS tecnico_usuario
+$sql = "SELECT i.*, UNIX_TIMESTAMP(i.fecha_registro) AS registro_epoch, t.usuario AS tecnico_usuario,
+            (SELECT IFNULL(c.respuesta, 'pendiente') FROM confirmaciones_solicitante c
+             WHERE c.incidencia_id = i.id ORDER BY c.fecha_pregunta DESC, c.id DESC LIMIT 1) AS ultima_confirmacion
         FROM incidencias i
         LEFT JOIN usuarios t ON t.id = i.tecnico_id
         WHERE (? = 1 OR i.tecnico_id = ?) AND i.archivado = ?";
@@ -892,6 +895,14 @@ if (isset($_GET["asignado"])) {
                                         <span class="s-solo-lector">Estado:</span>
                                         <?= escapar($fila["estado"]) ?>
                                     </span>
+                                    <?php $confirmacion_fila = insigniaConfirmacion($fila["ultima_confirmacion"], $fila["estado"]); ?>
+                                    <?php if ($confirmacion_fila !== null): ?>
+                                        <span class="s-confirmacion-insignia s-confirmacion-<?= $confirmacion_fila['clave'] ?>" title="Última confirmación del solicitante">
+                                            <i class="fa-solid <?= $confirmacion_fila['icono'] ?>" aria-hidden="true"></i>
+                                            <span class="s-solo-lector">Solicitante:</span>
+                                            <?= escapar($confirmacion_fila['texto']) ?>
+                                        </span>
+                                    <?php endif; ?>
                                 </td>
 
                                 <td class="s-celda-sla" data-etiqueta="SLA">

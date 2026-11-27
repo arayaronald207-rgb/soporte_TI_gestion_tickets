@@ -24,6 +24,23 @@ const CONFIRMACION_RESPUESTAS = [
     'sigue_fallando' => 'No, el problema sigue',
 ];
 
+/**
+ * Insignia del listado para la ultima confirmacion del ticket.
+ * $ultima: 'pendiente', 'funciona', 'sigue_fallando' o null (sin preguntas).
+ * Una pregunta pendiente solo se muestra si el ticket aun admite respuesta.
+ */
+function insigniaConfirmacion(?string $ultima, string $estado): ?array
+{
+    return match ($ultima) {
+        'funciona' => ['clave' => 'funciona', 'icono' => 'fa-circle-check', 'texto' => 'Funciona'],
+        'sigue_fallando' => ['clave' => 'sigue-fallando', 'icono' => 'fa-triangle-exclamation', 'texto' => 'Sigue fallando'],
+        'pendiente' => in_array($estado, ESTADOS_CONFIRMACION, true)
+            ? ['clave' => 'pendiente', 'icono' => 'fa-hourglass-half', 'texto' => 'Esperando respuesta']
+            : null,
+        default => null,
+    };
+}
+
 // Pregunta sin responder del ticket, o null.
 function confirmacionPendiente(mysqli $conn, int $incidencia_id): ?array
 {
