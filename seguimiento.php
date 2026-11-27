@@ -14,6 +14,7 @@ require_once __DIR__ . '/config/autorizacion.php';
 require_once __DIR__ . '/config/historial.php';
 require_once __DIR__ . '/config/encuestas.php';
 require_once __DIR__ . '/config/estados.php';
+require_once __DIR__ . '/config/confirmaciones.php';
 
 $usuario_actual = usuarioAutenticado($conn, 'login.php', false);
 
@@ -26,6 +27,9 @@ const SEGUIMIENTO_MAX_INTENTOS = 5;
 const SEGUIMIENTO_BLOQUEO_SEGUNDOS = 600;
 
 $error = '';
+$error_confirmacion = '';
+$respuesta_ingresada = '';
+$comentario_confirmacion = '';
 $numero_ingresado = '';
 $autorizados = is_array($_SESSION['seguimiento_tickets'] ?? null) ? $_SESSION['seguimiento_tickets'] : [];
 
@@ -49,7 +53,8 @@ $ticketAutorizado = static function (int $id) use ($conn, $autorizados): ?array 
 };
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    validarParametrosTexto($_POST, ['accion', 'numero', 'codigo', 'ticket', 'calificacion', 'comentario']);
+    validarParametrosTexto($_POST, ['accion', 'numero', 'codigo', 'ticket', 'calificacion', 'comentario',
+        'confirmacion', 'respuesta', 'comentario_confirmacion']);
     $token = $_POST['csrf_token'] ?? '';
     $accion = $_POST['accion'] ?? '';
 
@@ -151,13 +156,72 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
             $_GET['ticket'] = (string) $id;
         }
+    } elseif ($accion === 'confirmar') {
+        // Respuesta a la pregunta del tecnico («¿ya funciona?»). Solo informa: no cambia el estado.
+        $id = filter_var($_POST['ticket'] ?? null, FILTER_VALIDATE_INT);
+        $confirmacion_id = filter_var($_POST['confirmacion'] ?? null, FILTER_VALIDATE_INT);
+        $respuesta_ingresada = (string) ($_POST['respuesta'] ?? '');
+        $comentario_confirmacion = trim((string) ($_POST['comentario_confirmacion'] ?? ''));
+        $motivo = motivoRespuestaInvalida($respuesta_ingresada, $comentario_confirmacion);
+        if (!$id || $ticketAutorizado($id) === null) {
+            http_response_code(403);
+            $error = 'Vuelve a consultar tu ticket con el número y el código de seguimiento.';
+        } elseif (!$confirmacion_id) {
+            http_response_code(422);
+            $error_confirmacion = 'La pregunta no es válida. Actualiza la página.';
+            $_GET['ticket'] = (string) $id;
+        } elseif ($motivo !== null) {
+            http_response_code(422);
+            $error_confirmacion = $motivo;
+            $_GET['ticket'] = (string) $id;
+        } else {
+            try {
+                $conn->begin_transaction();
+                // Bloquear el ticket: el estado podria cambiar mientras se responde.
+                $stmt = $conn->prepare('SELECT estado FROM incidencias WHERE id = ? FOR UPDATE');
+                $stmt->bind_param('i', $id);
+                $stmt->execute();
+                $estado_actual = $stmt->get_result()->fetch_assoc()['estado'] ?? null;
+                $stmt->close();
+                if (!in_array($estado_actual, ESTADOS_CONFIRMACION, true)) {
+                    $conn->rollback();
+                    http_response_code(409);
+                    $error_confirmacion = 'Esta pregunta ya no admite respuesta porque cambió el estado del ticket.';
+                } else {
+                    $comentario_guardado = $comentario_confirmacion === '' ? null : $comentario_confirmacion;
+                    // Solo la pregunta pendiente de este ticket: una respuesta por pregunta.
+                    $stmt = $conn->prepare('UPDATE confirmaciones_solicitante
+                        SET respuesta = ?, comentario = ?, fecha_respuesta = UTC_TIMESTAMP()
+                        WHERE id = ? AND incidencia_id = ? AND respuesta IS NULL');
+                    $stmt->bind_param('ssii', $respuesta_ingresada, $comentario_guardado, $confirmacion_id, $id);
+                    $stmt->execute();
+                    $actualizadas = $stmt->affected_rows;
+                    $stmt->close();
+                    if ($actualizadas !== 1) {
+                        $conn->rollback();
+                        http_response_code(409);
+                        $error_confirmacion = 'Esta pregunta ya fue respondida.';
+                    } else {
+                        $conn->commit();
+                        header('Location: seguimiento.php?ticket=' . $id . '&confirmado=1#confirmacion');
+                        exit;
+                    }
+                }
+            } catch (mysqli_sql_exception $e) {
+                $conn->rollback();
+                error_log('Error al guardar confirmacion: ' . $e->getMessage());
+                http_response_code(500);
+                $error_confirmacion = 'No se pudo guardar tu respuesta. Inténtalo de nuevo.';
+            }
+            $_GET['ticket'] = (string) $id;
+        }
     } else {
         http_response_code(422);
         $error = 'Operación no válida.';
     }
 }
 
-validarParametrosTexto($_GET, ['ticket', 'encuesta']);
+validarParametrosTexto($_GET, ['ticket', 'encuesta', 'confirmado']);
 $ticket = null;
 $encuesta = null;
 $id_consultado = filter_var($_GET['ticket'] ?? null, FILTER_VALIDATE_INT);
@@ -167,8 +231,19 @@ if ($id_consultado && $id_consultado > 0) {
         $error = 'Para ver un ticket, escribe su número y el código de seguimiento.';
     }
 }
+$pregunta_pendiente = null;
+$ultima_respuesta = null;
 if ($ticket !== null) {
     $encuesta = encuestaDeIncidencia($conn, (int) $ticket['id']);
+    // La pregunta pendiente solo se ofrece mientras el ticket admite respuesta.
+    if (in_array($ticket['estado'], ESTADOS_CONFIRMACION, true)) {
+        $pregunta_pendiente = confirmacionPendiente($conn, (int) $ticket['id']);
+    }
+    foreach (confirmacionesDeIncidencia($conn, (int) $ticket['id']) as $confirmacion) {
+        if ($confirmacion['respuesta'] !== null) {
+            $ultima_respuesta = $confirmacion;
+        }
+    }
 }
 
 function escapar($valor): string
@@ -318,6 +393,88 @@ require __DIR__ . '/includes/cabecera_publica.php';
                         </div>
                     <?php endif; ?>
                 </section>
+
+                <?php if ($pregunta_pendiente !== null || $ultima_respuesta !== null || $error_confirmacion !== ''): ?>
+                <!-- CONFIRMACIÓN: EL TÉCNICO PREGUNTA SI YA FUNCIONA -->
+                <section id="confirmacion" class="s-form-tarjeta s-confirmacion-solicitante" aria-labelledby="titulo-confirmacion">
+                    <div class="s-form-cabecera">
+                        <span class="s-form-icono"><i class="fa-solid fa-circle-question" aria-hidden="true"></i></span>
+                        <div>
+                            <h2 id="titulo-confirmacion">El técnico te pregunta</h2>
+                            <p>Tu respuesta ayuda a confirmar si el problema quedó resuelto.</p>
+                        </div>
+                    </div>
+
+                    <?php if ($error_confirmacion !== ''): ?>
+                        <div class="s-aviso s-aviso-error" role="alert">
+                            <i class="fa-solid fa-circle-exclamation" aria-hidden="true"></i>
+                            <div><?= escapar($error_confirmacion) ?></div>
+                        </div>
+                    <?php elseif (isset($_GET['confirmado']) && $ultima_respuesta !== null): ?>
+                        <div class="s-aviso s-aviso-exito" role="status">
+                            <i class="fa-solid fa-circle-check" aria-hidden="true"></i>
+                            <div><strong>¡Gracias!</strong> El técnico verá tu respuesta.</div>
+                        </div>
+                    <?php endif; ?>
+
+                    <?php if ($pregunta_pendiente !== null): ?>
+                        <p class="s-confirmacion-pregunta historial-texto"><strong>«<?= escapar($pregunta_pendiente['pregunta']) ?>»</strong></p>
+                        <form method="POST" action="seguimiento.php?ticket=<?= (int) $ticket['id'] ?>#confirmacion" class="s-formulario">
+                            <input type="hidden" name="csrf_token" value="<?= escapar($_SESSION['csrf_token']) ?>">
+                            <input type="hidden" name="accion" value="confirmar">
+                            <input type="hidden" name="ticket" value="<?= (int) $ticket['id'] ?>">
+                            <input type="hidden" name="confirmacion" value="<?= (int) $pregunta_pendiente['id'] ?>">
+
+                            <fieldset class="s-form-seccion">
+                                <legend>Tu respuesta <span class="s-obligatorio" aria-hidden="true">*</span></legend>
+                                <div class="s-opciones">
+                                    <?php foreach (['funciona' => ['resuelta', 'fa-circle-check', 'El problema quedó resuelto.'],
+                                        'sigue_fallando' => ['pendiente', 'fa-triangle-exclamation', 'Todavía hay una falla. Cuéntanos cuál.']] as $valor => [$tono, $icono, $texto]): ?>
+                                        <label class="s-opcion s-opcion-<?= $tono ?>">
+                                            <input type="radio" name="respuesta" value="<?= $valor ?>" <?= $respuesta_ingresada === $valor ? 'checked' : '' ?> required>
+                                            <span class="s-opcion-cuerpo">
+                                                <span class="s-opcion-icono"><i class="fa-solid <?= $icono ?>" aria-hidden="true"></i></span>
+                                                <span class="s-opcion-texto">
+                                                    <strong><?= escapar(CONFIRMACION_RESPUESTAS[$valor]) ?></strong>
+                                                    <small><?= escapar($texto) ?></small>
+                                                </span>
+                                            </span>
+                                        </label>
+                                    <?php endforeach; ?>
+                                </div>
+                            </fieldset>
+
+                            <div class="s-campo">
+                                <label for="comentario_confirmacion" class="s-etiqueta">Comentario</label>
+                                <textarea id="comentario_confirmacion" name="comentario_confirmacion" rows="3"
+                                          maxlength="<?= CONFIRMACION_COMENTARIO_MAX ?>" class="s-control" data-contador
+                                          aria-describedby="ayuda-comentario-confirmacion"
+                                          placeholder="¿Qué sigue fallando? ¿Cuándo ocurre?"><?= escapar($comentario_confirmacion) ?></textarea>
+                                <div class="s-aviso s-aviso-info" id="ayuda-comentario-confirmacion">
+                                    <i class="fa-solid fa-circle-info" aria-hidden="true"></i>
+                                    <div>Si eliges <strong>«No, el problema sigue»</strong>, el comentario es <strong>obligatorio</strong>: describe qué sigue fallando. Si ya funciona, es opcional.</div>
+                                </div>
+                            </div>
+
+                            <div class="s-form-acciones">
+                                <button type="submit" class="s-btn s-btn-primario">
+                                    <i class="fa-solid fa-paper-plane" aria-hidden="true"></i>
+                                    Enviar respuesta
+                                </button>
+                            </div>
+                        </form>
+                    <?php elseif ($ultima_respuesta !== null): ?>
+                        <div class="s-encuesta-resultado">
+                            <p class="historial-texto">«<?= escapar($ultima_respuesta['pregunta']) ?>»</p>
+                            <strong><?= escapar(CONFIRMACION_RESPUESTAS[$ultima_respuesta['respuesta']]) ?></strong>
+                            <?php if ($ultima_respuesta['comentario'] !== null): ?>
+                                <p class="historial-texto">«<?= escapar($ultima_respuesta['comentario']) ?>»</p>
+                            <?php endif; ?>
+                            <small>Respondida el <?= escapar(fechaHistorialLocal($ultima_respuesta['fecha_respuesta'])) ?> (Costa Rica).</small>
+                        </div>
+                    <?php endif; ?>
+                </section>
+                <?php endif; ?>
 
                 <!-- ENCUESTA DE SATISFACCIÓN -->
                 <section class="s-form-tarjeta s-encuesta" aria-labelledby="titulo-encuesta">
