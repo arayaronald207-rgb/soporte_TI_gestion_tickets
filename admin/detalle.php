@@ -6,6 +6,7 @@ require_once __DIR__ . '/../config/historial.php';
 require_once __DIR__ . '/../config/sla.php';
 require_once __DIR__ . '/../config/encuestas.php';
 require_once __DIR__ . '/../config/estados.php';
+require_once __DIR__ . '/../config/confirmaciones.php';
 $usuario_actual = usuarioAutenticado($conn, '../login.php');
 $id = filter_input(INPUT_GET, 'id', FILTER_VALIDATE_INT);
 if (!$id || $id <= 0) {
@@ -17,6 +18,8 @@ if (empty($_SESSION['csrf_token'])) {
 }
 $error = '';
 $comentario = '';
+$pregunta = CONFIRMACION_PREGUNTA_SUGERIDA;
+$error_confirmacion = '';
 $confirmar_codigo = false;
 try {
     // Incluso la lectura del historial mantiene el permiso hasta terminar de leer.
@@ -26,6 +29,9 @@ try {
         $token = $_POST['csrf_token'] ?? '';
         $comentario = is_string($_POST['comentario'] ?? null) ? trim($_POST['comentario']) : '';
         $accion = $_POST['accion'] ?? 'comentario';
+        if ($accion === 'preguntar') {
+            $pregunta = is_string($_POST['pregunta'] ?? null) ? trim($_POST['pregunta']) : '';
+        }
         if (!is_string($token) || !hash_equals($_SESSION['csrf_token'], $token)) {
             http_response_code(403);
             $error = 'Solicitud no válida. Actualiza la página.';
@@ -53,6 +59,28 @@ try {
             $_SESSION['codigo_generado'] = ['id' => $id, 'codigo' => $codigo_nuevo];
             header('Location: detalle.php?id=' . $id . '#codigo');
             exit;
+        } elseif ($accion === 'preguntar') {
+            // Pregunta al solicitante: estado, codigo y pendiente se validan con el ticket bloqueado.
+            $motivo = motivoNoPreguntar($conn, $incidencia);
+            if ($motivo !== null) {
+                http_response_code(409);
+                $error = $motivo;
+            } elseif (!textoConfirmacionValido($pregunta, CONFIRMACION_PREGUNTA_MAX)) {
+                http_response_code(422);
+                $error = 'Escribe una pregunta de 1 a ' . CONFIRMACION_PREGUNTA_MAX . ' caracteres, con contenido válido.';
+            } else {
+                $autor_id = (int) $_SESSION['admin_id'];
+                $stmt = $conn->prepare('INSERT INTO confirmaciones_solicitante (incidencia_id, pregunta, preguntado_por, fecha_pregunta)
+                    VALUES (?, ?, ?, UTC_TIMESTAMP())');
+                $stmt->bind_param('isi', $id, $pregunta, $autor_id);
+                $stmt->execute();
+                $stmt->close();
+                registrarEventoIncidencia($conn, $id, $autor_id, 'confirmacion_solicitada',
+                    'Se preguntó al solicitante: «' . $pregunta . '»');
+                $conn->commit();
+                header('Location: detalle.php?id=' . $id . '&preguntado=1#confirmacion');
+                exit;
+            }
         } elseif ($accion !== 'comentario') {
             http_response_code(422);
             $error = 'Operación no válida.';
@@ -66,6 +94,11 @@ try {
             $conn->commit();
             header('Location: detalle.php?id=' . $id . '&comentado=1#historial');
             exit;
+        }
+        // Los errores de la pregunta se muestran en su propia tarjeta.
+        if ($accion === 'preguntar' && $error !== '') {
+            $error_confirmacion = $error;
+            $error = '';
         }
     }
     $stmt = $conn->prepare(
@@ -93,6 +126,8 @@ try {
     $sla = evaluarSla($incidencia['prioridad'], $incidencia['estado'],
         $registro_epoch === null ? null : (int) $registro_epoch, $incidencia['fecha_resolucion']);
     $encuesta = encuestaDeIncidencia($conn, $id);
+    $confirmaciones = confirmacionesDeIncidencia($conn, $id);
+    $motivo_no_preguntar = motivoNoPreguntar($conn, $incidencia);
     $conn->commit();
     // Codigo recien generado: se muestra una sola vez.
     $codigo_generado = null;
@@ -112,7 +147,27 @@ function escapar($valor): string {
 $solo_lectura = ticketSoloLectura($incidencia['estado'], (string) $_SESSION['admin_rol']);
 $tipos = ['creacion' => 'Creación', 'comentario' => 'Comentario', 'edicion' => 'Edición',
     'asignacion' => 'Asignación', 'cambio_estado' => 'Cambio de estado',
-    'archivado' => 'Archivado', 'desarchivado' => 'Desarchivado'];
+    'archivado' => 'Archivado', 'desarchivado' => 'Desarchivado',
+    'confirmacion_solicitada' => 'Pregunta al solicitante', 'respuesta_solicitante' => 'Respuesta del solicitante'];
+
+// Linea de tiempo: eventos del historial + respuestas del solicitante (que no
+// tiene usuario del sistema, por eso se leen de confirmaciones_solicitante).
+$linea_tiempo = $historial;
+$pendiente = null;
+$ultima_respuesta = null;
+foreach ($confirmaciones as $confirmacion) {
+    if ($confirmacion['respuesta'] === null) {
+        $pendiente = $confirmacion;
+        continue;
+    }
+    $ultima_respuesta = $confirmacion;
+    $linea_tiempo[] = ['tipo' => 'respuesta_solicitante', 'fecha' => $confirmacion['fecha_respuesta'],
+        'confirmacion_id' => (int) $confirmacion['id'], 'respuesta' => $confirmacion['respuesta'],
+        'pregunta' => $confirmacion['pregunta'], 'detalle' => $confirmacion['comentario']];
+}
+// usort es estable: con la misma fecha se conserva el orden del historial.
+usort($linea_tiempo, static fn(array $a, array $b): int => strcmp($a['fecha'], $b['fecha']));
+$insignia_respuesta = ['funciona' => ['resuelta', 'fa-circle-check'], 'sigue_fallando' => ['alta', 'fa-triangle-exclamation']];
 $categorias = ['hardware' => 'Hardware', 'software' => 'Software', 'red' => 'Red'];
 ?>
 <!DOCTYPE html>
@@ -170,6 +225,7 @@ $categorias = ['hardware' => 'Hardware', 'software' => 'Software', 'red' => 'Red
             'cambio_estado' => ['s-evento-estado', 'fa-arrows-rotate'],
             'archivado' => ['s-evento-archivado', 'fa-box-archive'],
             'desarchivado' => ['s-evento-desarchivado', 'fa-box-open'],
+            'confirmacion_solicitada' => ['s-evento-pregunta', 'fa-circle-question'],
         ];
         $iconos_categoria = ['hardware' => 'fa-microchip', 'software' => 'fa-code', 'red' => 'fa-network-wired'];
         $clave_categoria = isset($categorias[$incidencia['categoria'] ?? '']) ? $incidencia['categoria'] : '';
@@ -296,10 +352,10 @@ $categorias = ['hardware' => 'Hardware', 'software' => 'Software', 'red' => 'Red
                             <h3 id="titulo-historial" class="s-detalle-subtitulo">Historial y seguimiento</h3>
                             <p>Del más antiguo al más reciente. Horas de Costa Rica (UTC−6).</p>
                         </div>
-                        <span class="s-historial-total"><?= count($historial) ?> registro(s)</span>
+                        <span class="s-historial-total"><?= count($linea_tiempo) ?> registro(s)</span>
                     </div>
 
-                    <?php if (!$historial): ?>
+                    <?php if (!$linea_tiempo): ?>
                         <div class="s-vacio s-historial-vacio">
                             <span class="s-vacio-icono"><i class="fa-regular fa-clock" aria-hidden="true"></i></span>
                             <strong class="s-vacio-titulo">No hay seguimiento registrado todavía.</strong>
@@ -307,7 +363,26 @@ $categorias = ['hardware' => 'Hardware', 'software' => 'Software', 'red' => 'Red
                         </div>
                     <?php else: ?>
                         <ol class="s-linea-tiempo">
-                        <?php foreach ($historial as $evento): ?>
+                        <?php foreach ($linea_tiempo as $evento): ?>
+                            <?php if ($evento['tipo'] === 'respuesta_solicitante'): ?>
+                                <?php [$tono_respuesta, $icono_respuesta] = $insignia_respuesta[$evento['respuesta']]; ?>
+                                <li class="s-evento s-evento-respuesta s-evento-respuesta-<?= escapar($evento['respuesta']) ?> historial-item historial-evento" data-confirmacion-id="<?= (int) $evento['confirmacion_id'] ?>">
+                                    <span class="s-evento-icono" aria-hidden="true"><i class="fa-solid <?= $icono_respuesta ?>"></i></span>
+                                    <div class="s-evento-meta">
+                                        <strong class="s-evento-tipo"><?= escapar($tipos['respuesta_solicitante']) ?></strong>
+                                        <span class="s-evento-autor"><?= escapar($incidencia['reportado_por']) ?> <span class="s-mono">· Solicitante</span></span>
+                                        <time class="s-evento-tiempo" datetime="<?= escapar(str_replace(' ', 'T', $evento['fecha']) . 'Z') ?>"><?= escapar(fechaHistorialLocal($evento['fecha'])) ?></time>
+                                    </div>
+                                    <p class="s-evento-detalle historial-texto">A la pregunta «<?= escapar($evento['pregunta']) ?>»:</p>
+                                    <p class="s-cambio">
+                                        <span class="s-insignia s-insignia-<?= $tono_respuesta ?>"><?= escapar(CONFIRMACION_RESPUESTAS[$evento['respuesta']]) ?></span>
+                                    </p>
+                                    <?php if ($evento['detalle'] !== null): ?>
+                                        <p class="s-evento-cuerpo historial-texto"><?= escapar($evento['detalle']) ?></p>
+                                    <?php endif; ?>
+                                </li>
+                                <?php continue; ?>
+                            <?php endif; ?>
                             <?php
                             $es_comentario = $evento['tipo'] === 'comentario';
                             [$clase_evento, $icono_evento] = $iconos_evento[$evento['tipo']] ?? ['', 'fa-circle'];
@@ -427,6 +502,63 @@ $categorias = ['hardware' => 'Hardware', 'software' => 'Software', 'red' => 'Red
                             <div><dt>Límite de resolución</dt><dd><?= escapar(fechaLocalDesdeEpoch($sla['limite_epoch'])) ?></dd></div>
                         <?php endif; ?>
                     </dl>
+                </div>
+
+                <!-- CONFIRMACIÓN DEL SOLICITANTE («¿ya funciona?») -->
+                <div class="s-ficha-bloque s-confirmacion-solicitante" id="confirmacion" aria-labelledby="titulo-confirmacion">
+                    <span class="s-rotulo" id="titulo-confirmacion">Confirmación del solicitante</span>
+
+                    <?php if ($error_confirmacion !== ''): ?>
+                        <div role="alert" class="s-aviso s-aviso-error">
+                            <i class="fa-solid fa-circle-exclamation" aria-hidden="true"></i>
+                            <div><?= escapar($error_confirmacion) ?></div>
+                        </div>
+                    <?php elseif (isset($_GET['preguntado']) && $_SERVER['REQUEST_METHOD'] === 'GET' && $pendiente !== null): ?>
+                        <div role="status" class="s-aviso s-aviso-exito">
+                            <i class="fa-solid fa-circle-check" aria-hidden="true"></i>
+                            <div>Pregunta enviada. El solicitante la verá al consultar su ticket.</div>
+                        </div>
+                    <?php endif; ?>
+
+                    <?php if ($pendiente !== null): ?>
+                        <p class="s-sla-resumen">
+                            <span class="s-insignia s-insignia-pendiente"><i class="fa-solid fa-hourglass-half" aria-hidden="true"></i> Esperando respuesta</span>
+                        </p>
+                        <p class="historial-texto">«<?= escapar($pendiente['pregunta']) ?>»</p>
+                        <p class="s-ficha-nota">Preguntado por <?= escapar($pendiente['preguntado_por_usuario']) ?> el <?= escapar(fechaHistorialLocal($pendiente['fecha_pregunta'])) ?>.</p>
+                    <?php elseif ($ultima_respuesta !== null): ?>
+                        <?php [$tono_ultima, $icono_ultima] = $insignia_respuesta[$ultima_respuesta['respuesta']]; ?>
+                        <p class="s-sla-resumen">
+                            <span class="s-insignia s-insignia-<?= $tono_ultima ?>"><i class="fa-solid <?= $icono_ultima ?>" aria-hidden="true"></i> <?= escapar(CONFIRMACION_RESPUESTAS[$ultima_respuesta['respuesta']]) ?></span>
+                        </p>
+                        <?php if ($ultima_respuesta['comentario'] !== null): ?>
+                            <p class="historial-texto">«<?= escapar($ultima_respuesta['comentario']) ?>»</p>
+                        <?php endif; ?>
+                        <p class="s-ficha-nota">Respondida el <?= escapar(fechaHistorialLocal($ultima_respuesta['fecha_respuesta'])) ?>. La respuesta no cambia el estado: decide si cierras o reabres el ticket.</p>
+                    <?php endif; ?>
+
+                    <?php if ($solo_lectura): ?>
+                        <p class="s-ficha-nota"><i class="fa-solid fa-lock" aria-hidden="true"></i> Ticket cerrado: no se pueden enviar preguntas.</p>
+                    <?php elseif ($motivo_no_preguntar === null): ?>
+                        <form method="POST" action="detalle.php?id=<?= (int) $id ?>#confirmacion" class="s-formulario">
+                            <input type="hidden" name="csrf_token" value="<?= escapar($_SESSION['csrf_token']) ?>">
+                            <input type="hidden" name="accion" value="preguntar">
+                            <div class="s-campo">
+                                <label for="pregunta" class="s-etiqueta">
+                                    <?= $ultima_respuesta !== null ? 'Hacer otra pregunta' : 'Preguntar si ya funciona' ?>
+                                    <span class="s-obligatorio" aria-hidden="true">*</span>
+                                </label>
+                                <textarea id="pregunta" name="pregunta" rows="3" maxlength="<?= CONFIRMACION_PREGUNTA_MAX ?>"
+                                          class="s-control" data-contador required><?= escapar($pregunta) ?></textarea>
+                                <span class="s-ayuda">El solicitante verá este texto al consultar su ticket con su código.</span>
+                            </div>
+                            <button type="submit" class="s-btn s-btn-secundario s-btn-sm">
+                                <i class="fa-solid fa-circle-question" aria-hidden="true"></i> Enviar pregunta
+                            </button>
+                        </form>
+                    <?php elseif ($pendiente === null): ?>
+                        <p class="s-ficha-nota"><?= escapar($motivo_no_preguntar) ?></p>
+                    <?php endif; ?>
                 </div>
 
                 <!-- ENCUESTA DEL SOLICITANTE -->
