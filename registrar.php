@@ -241,6 +241,13 @@ require __DIR__ . '/includes/cabecera_publica.php';
                             calificar la atención recibida.
                         </span>
                     </p>
+                    <p class="s-codigo-nota">
+                        <i class="fa-solid fa-circle-question" aria-hidden="true"></i>
+                        <span>
+                            Revisa tu ticket de vez en cuando: el técnico podría pedirte que confirmes
+                            si el problema ya quedó resuelto.
+                        </span>
+                    </p>
                 </div>
             <?php endif; ?>
 

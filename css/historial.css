@@ -310,6 +310,12 @@
 .s-evento-desarchivado .s-evento-icono { background: var(--s-cian-50); color: var(--s-cian-700); }
 .s-evento-comentario   .s-evento-icono { background: var(--s-ambar-50); color: var(--s-ambar-700); box-shadow: 0 0 0 1px #F5D3A0; }
 
+/* Confirmación del solicitante: pregunta del personal y respuesta del solicitante */
+.s-evento-pregunta                  .s-evento-icono { background: var(--s-estado-proceso-fondo); color: var(--s-estado-proceso-texto); }
+.s-evento-respuesta-funciona        .s-evento-icono { background: var(--s-estado-resuelta-fondo); color: var(--s-estado-resuelta-texto); }
+.s-evento-respuesta-sigue_fallando  .s-evento-icono { background: var(--s-prioridad-alta-fondo); color: var(--s-prioridad-alta-texto); }
+.s-evento-respuesta .s-cambio { margin-top: var(--s-esp-2); }
+
 .s-evento-tipo {
     color: var(--s-texto);
     font-weight: var(--s-peso-fuerte);

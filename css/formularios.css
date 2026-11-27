@@ -662,3 +662,29 @@
         transition: none;
     }
 }
+
+
+/* --------------------------------------------------------------------------
+   Confirmación del solicitante («¿ya funciona?»)
+   -------------------------------------------------------------------------- */
+
+/* Consultar mi ticket: pregunta destacada y aviso del comentario obligatorio */
+.s-confirmacion-solicitante .s-confirmacion-pregunta {
+    margin: 0 0 var(--s-esp-4);
+    font-size: var(--s-texto-md);
+}
+
+.s-confirmacion-solicitante .s-campo .s-aviso {
+    margin-top: var(--s-esp-2);
+}
+
+/* Detalle del ticket: tarjeta lateral */
+.s-ficha-bloque.s-confirmacion-solicitante .s-insignia {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.s-ficha-bloque.s-confirmacion-solicitante .s-formulario {
+    margin-top: var(--s-esp-3);
+}

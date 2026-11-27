@@ -613,3 +613,23 @@
         transition: none;
     }
 }
+
+
+/* --------------------------------------------------------------------------
+   Confirmación del solicitante: última respuesta en el listado
+   -------------------------------------------------------------------------- */
+
+.s-confirmacion-insignia {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    width: max-content;
+    margin-top: 6px;
+    font-size: 11px;
+    font-weight: var(--s-peso-fuerte);
+    white-space: nowrap;
+}
+
+.s-confirmacion-funciona       { color: var(--s-estado-resuelta-texto); }
+.s-confirmacion-sigue-fallando { color: var(--s-prioridad-alta-texto); }
+.s-confirmacion-pendiente      { color: var(--s-estado-pendiente-texto); }

@@ -19,6 +19,7 @@ Aplicación web tipo *Help Desk* para registrar, asignar, atender y dar seguimie
 - **Dashboard de métricas:** tickets activos, sin asignar, por estado, prioridad, categoría y técnico, y tiempo promedio de resolución (en días cuando supera 48 h). Los tickets cerrados conservan su fecha de resolución y cuentan en el promedio y en el SLA.
 - **Acuerdos de nivel de servicio (SLA):** plazos por prioridad (Alta 4 h, Media 24 h, Baja 72 h) con alerta visual *A tiempo / Por vencer / Vencido*.
 - **Encuestas de satisfacción:** el solicitante consulta su ticket con un código de seguimiento y califica la atención (1 a 5 estrellas) cuando está resuelto o cerrado.
+- **Confirmación del solicitante:** con el ticket En proceso o Resuelta, el técnico asignado (o el administrador) pregunta si ya funciona; el solicitante responde al consultar su ticket («Sí, ya funciona» o «No, el problema sigue», con comentario obligatorio en ese caso). La respuesta se ve en el detalle y en el listado, y no cambia el estado: el técnico decide si cierra o reabre.
 
 ## Roles
 
@@ -43,13 +44,14 @@ PHP 8.2 (mysqli), MariaDB 10.4 / MySQL, Apache 2.4 (XAMPP), HTML5, CSS3, JavaScr
    mysql -u root gestion_incidencias < C:\xampp\htdocs\gestion_incidencias\migracion_gestion_tickets.sql
    mysql -u root gestion_incidencias < C:\xampp\htdocs\gestion_incidencias\migracion_sla_encuestas.sql
    mysql -u root gestion_incidencias < C:\xampp\htdocs\gestion_incidencias\migracion_estado_cerrado.sql
+   mysql -u root gestion_incidencias < C:\xampp\htdocs\gestion_incidencias\migracion_confirmacion_solicitante.sql
    ```
 
 3. Crear una cuenta de base de datos con privilegios mínimos para la aplicación (reemplazar `TU_CONTRASENA` por una contraseña propia):
 
    ```bat
    mysql -u root -e "CREATE USER 'soporte_ti_app'@'localhost' IDENTIFIED BY 'TU_CONTRASENA'; GRANT SELECT, INSERT, UPDATE, DELETE ON gestion_incidencias.usuarios TO 'soporte_ti_app'@'localhost'; GRANT SELECT, INSERT, UPDATE ON gestion_incidencias.incidencias TO 'soporte_ti_app'@'localhost'; GRANT SELECT, INSERT ON gestion_incidencias.incidencia_historial TO 'soporte_ti_app'@'localhost';"
-   mysql -u root -e "GRANT SELECT, INSERT ON gestion_incidencias.encuestas_satisfaccion TO 'soporte_ti_app'@'localhost'; FLUSH PRIVILEGES;"
+   mysql -u root -e "GRANT SELECT, INSERT ON gestion_incidencias.encuestas_satisfaccion TO 'soporte_ti_app'@'localhost'; GRANT SELECT, INSERT, UPDATE ON gestion_incidencias.confirmaciones_solicitante TO 'soporte_ti_app'@'localhost'; FLUSH PRIVILEGES;"
    ```
 
 4. Configurar la conexión: copiar `config/config.example.php` como `config/config.local.php` y escribir el usuario y la contraseña de esa cuenta. **`config.local.php` no se sube al repositorio.**
